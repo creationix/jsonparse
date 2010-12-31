@@ -15,11 +15,13 @@ t.write(new Buffer(JSON.stringify({"Hello":"World"})));
 */
 var p = new Parser();
 p.onValue = function (value) {
-  var path = this.stack.map(function (item) {
-    return "." + (item.key || this.key);
-  }, this).join('');
+  var keys = this.stack.map(function (item) {
+    return '.' + item.key;
+  }, this);
+  keys.push('.' + this.key);
+  keys.shift();
 
-  console.log("onValue: value%s = %s", path, JSON.stringify(value));
+  console.log("onValue: value%s = %s\n", keys.join(''), JSON.stringify(value));
 };
 //p.write(JSON.stringify([1,2,3]));
 //p.write(JSON.stringify([]));

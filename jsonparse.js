@@ -75,8 +75,8 @@ Tokenizer.prototype.write = function (buffer) {
   if (typeof buffer === 'string') {
     buffer = new Buffer(buffer);
   }
-  process.stdout.write("Input: ");
-  console.dir(buffer.toString());
+  // process.stdout.write("Input: ");
+  // console.dir(buffer.toString());
   var n;
   for (var i = 0, l = buffer.length; i < l; i++) {
     switch (this.state) {
@@ -260,11 +260,12 @@ Parser.prototype.push = function () {
   this.stack.push({value: this.value, key: this.key, mode: this.mode});
 };
 Parser.prototype.pop = function () {
+  var value = this.value;
   var parent = this.stack.pop();
-  this.emit(this.value);
   this.value = parent.value;
   this.key = parent.key;
   this.mode = parent.mode;
+  this.emit(value);
   if (!this.mode) { this.state = VALUE; }
 };
 Parser.prototype.emit = function (value) {
@@ -341,7 +342,6 @@ Parser.prototype.onToken = function (token, value) {
     break;
   case COMMA:
     if (token === COMMA) { 
-      console.log("MODE %s", toknam(this.mode));
       if (this.mode === ARRAY) { this.key++; this.state = VALUE; }
       else if (this.mode === OBJECT) { this.state = KEY; }
 
