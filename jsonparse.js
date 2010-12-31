@@ -49,7 +49,7 @@ function toknam(code) {
     var key = keys[i];
     if (C[key] === code) { return key; }
   }
-  return "0x" + code.toString(16);
+  return code && ("0x" + code.toString(16));
 }
 
 
@@ -244,7 +244,7 @@ function Parser(tokenizer) {
 
   this.value = undefined;
   this.key = undefined;
-  this.mode = undefined;
+  this.mode = VALUE;
   this.stack = [];
   this.state = VALUE;
 }
@@ -261,6 +261,7 @@ Parser.prototype.pop = function () {
   this.value = parent.value;
   this.key = parent.key;
   this.mode = parent.mode;
+  this.state = this.mode;
 };
 Parser.prototype.emit = function (value) {
   if (this.mode) { this.state = this.mode; }
@@ -310,7 +311,7 @@ Parser.prototype.onToken = function (token, value) {
       }
       break;
     case RIGHT_BRACKET:
-      if (this.mode === VALUE) {
+      if (this.mode === COMMA) {
         this.pop();
       } else {
         this.syntaxError(token, value);
