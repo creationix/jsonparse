@@ -7,9 +7,9 @@ var json = fs.readFileSync("samplejson/basic.json");
 // Make sure it's parsing correctly before any benchmarking is done
 var t = new Parser();
 var v;
-t.onValue(function (value) { v = value; });
+t.onValue = function (value) { v = value; };
 t.write(json);
-if (JSON.stringify(v) !== json) {
+if (JSON.stringify(v) !== JSON.stringify(JSON.parse(json))) {
   throw new Error("Invalid parse result:\n" + JSON.stringify(v));
 }
 
