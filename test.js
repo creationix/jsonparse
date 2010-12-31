@@ -1,6 +1,5 @@
 /*global Buffer*/
-var Tokenizer = require('./jsonparse').Tokenizer,
-    Parser    = require('./jsonparse').Parser;
+var Parser = require('./jsonparse');
 /*
 var t = new Tokenizer();
 t.onToken = function (token, value) {
