@@ -1,36 +1,57 @@
 /*global Buffer*/
+// Named constants with unique integer values
+var C = {}, uniq = 0;
 // Tokens
-var LEFT_BRACE    = 0x7b,
-    RIGHT_BRACE   = 0x7d,
-    LEFT_BRACKET  = 0x5b,
-    RIGHT_BRACKET = 0x5d,
-    COLON         = 0x3a,
-    COMMA         = 0x2c,
-    TRUE          = 0x101,
-    FALSE         = 0x102,
-    NULL          = 0x103,
-    STRING        = 0x201, // Requires value
-    NUMBER        = 0x202; // Requires value
+var LEFT_BRACE    = C.LEFT_BRACE    = uniq++;
+var RIGHT_BRACE   = C.RIGHT_BRACE   = uniq++;
+var LEFT_BRACKET  = C.LEFT_BRACKET  = uniq++;
+var RIGHT_BRACKET = C.RIGHT_BRACKET = uniq++;
+var COLON         = C.COLON         = uniq++;
+var COMMA         = C.COMMA         = uniq++;
+var TRUE          = C.TRUE          = uniq++;
+var FALSE         = C.FALSE         = uniq++;
+var NULL          = C.NULL          = uniq++;
+var STRING        = C.STRING        = uniq++;
+var NUMBER        = C.NUMBER        = uniq++;
+// Tokenizer States
+var START   = C.START   = uniq++;
+var TRUE1   = C.TRUE1   = uniq++;
+var TRUE2   = C.TRUE2   = uniq++;
+var TRUE3   = C.TRUE3   = uniq++;
+var FALSE1  = C.FALSE1  = uniq++;
+var FALSE2  = C.FALSE2  = uniq++;
+var FALSE3  = C.FALSE3  = uniq++;
+var FALSE4  = C.FALSE4  = uniq++;
+var NULL1   = C.NULL1   = uniq++;
+var NULL2   = C.NULL3   = uniq++;
+var NULL3   = C.NULL2   = uniq++;
+var NUMBER1 = C.NUMBER1 = uniq++;
+var NUMBER2 = C.NUMBER2 = uniq++;
+var NUMBER3 = C.NUMBER3 = uniq++;
+var NUMBER4 = C.NUMBER4 = uniq++;
+var NUMBER5 = C.NUMBER5 = uniq++;
+var NUMBER6 = C.NUMBER6 = uniq++;
+var NUMBER7 = C.NUMBER7 = uniq++;
+var NUMBER8 = C.NUMBER8 = uniq++;
+var STRING1 = C.STRING1 = uniq++;
+var STRING2 = C.STRING2 = uniq++;
+var STRING3 = C.STRING3 = uniq++;
+var STRING4 = C.STRING4 = uniq++;
+var STRING5 = C.STRING5 = uniq++;
+var STRING6 = C.STRING6 = uniq++;
+// Parser States
+var VALUE = C.VALUE = uniq++;
+var KEY   = C.KEY   = uniq++;
 
-// States (Star means this could also be the start of another production)
-var START = 0x00,
-    TRUE1 = 0x11, TRUE2 = 0x12, TRUE3 = 0x13,
-    FALSE1 = 0x21, FALSE2 = 0x22, FALSE3 = 0x23, FALSE4 = 0x24,
-    NULL1 = 0x31, NULL2 = 0x32, NULL3 = 0x33,
-    NUMBER1 = 0x41, // After minus
-    NUMBER2 = 0x42, // * after initial zero
-    NUMBER3 = 0x43, // * after digit (before period)
-    NUMBER4 = 0x44, // after period
-    NUMBER5 = 0x45, // * after digit (after period)
-    NUMBER6 = 0x46, // after E
-    NUMBER7 = 0x47, // after +/-
-    NUMBER8 = 0x48, // * after digit after +/-
-    STRING1 = 0x51, // After open quote
-    STRING2 = 0x52, // After backslash
-    STRING3 = 0x53, // First unicode char
-    STRING4 = 0x54, // Second unicode char
-    STRING5 = 0x55, // Third unicode char
-    STRING6 = 0x56; // Fourth unicode char
+function toknam(code) {
+  var keys = Object.keys(C);
+  for (var i = 0, l = keys.length; i < l; i++) {
+    var key = keys[i];
+    if (C[key] === code) { return key; }
+  }
+  return "0x" + code.toString(16);
+}
+
 
 // Events
 // startObject, endObject
@@ -40,6 +61,10 @@ function Tokenizer() {
   this.state = START;
   this.data = [];
 }
+Tokenizer.prototype.syntaxError = function (buffer, i) {
+  this.onError(new Error("Unexpected " + JSON.stringify(String.fromCharCode(buffer[i])) + " at position " + i + " in state " + toknam(this.state)));
+};
+Tokenizer.prototype.onError = function (err) { throw err; };
 Tokenizer.prototype.write = function (buffer) {
   // TODO: Don't require this conversion to accept strings
   // It's probably quite expensive
@@ -54,12 +79,12 @@ Tokenizer.prototype.write = function (buffer) {
     case START:
       n = buffer[i];
       switch (n) {
-      case LEFT_BRACE: this.emit(LEFT_BRACE); break;
-      case RIGHT_BRACE: this.emit(RIGHT_BRACE); break;
-      case LEFT_BRACKET: this.emit(LEFT_BRACKET); break;
-      case RIGHT_BRACKET: this.emit(RIGHT_BRACKET); break;
-      case COLON: this.emit(COLON); break;
-      case COMMA: this.emit(COMMA); break;
+      case 0x7b: this.emit(LEFT_BRACE); break; // {
+      case 0x7d: this.emit(RIGHT_BRACE); break; // }
+      case 0x5b: this.emit(LEFT_BRACKET); break; // [
+      case 0x5d: this.emit(RIGHT_BRACKET); break; // ]
+      case 0x3a: this.emit(COLON); break; // :
+      case 0x2c: this.emit(COMMA); break; // ,
       case 0x74: this.state = TRUE1; break; // t
       case 0x66: this.state = FALSE1; break; // f
       case 0x6e: this.state = NULL1; break; // n
@@ -211,12 +236,10 @@ Tokenizer.prototype.onToken = function (token, value) {
   // Override this to get events
 };
 
-var VALUE = 0,
-    KEY = 1;
-
 function Parser(tokenizer) {
   var t = this.tokenizer = tokenizer || new Tokenizer();
   t.onToken = this.onToken.bind(this);
+  t.onError = this.onError.bind(this);
   this.write = t.write.bind(t);
 
   this.value = undefined;
@@ -225,6 +248,10 @@ function Parser(tokenizer) {
   this.stack = [];
   this.state = VALUE;
 }
+Parser.prototype.syntaxError = function (token, value) {
+  this.onError(new Error("Unexpected " + toknam(token) + (value ? ("(" + JSON.stringify(value) + ")") : "") + " in state " + toknam(this.state)));
+};
+Parser.prototype.onError = function (err) { throw err; };
 Parser.prototype.push = function () {
   this.stack.push({value: this.value, key: this.key, mode: this.mode});
 };
@@ -244,9 +271,9 @@ Parser.prototype.onValue = function (value) {
   // Override me
 };  
 Parser.prototype.onToken = function (token, value) {
-  console.log("OnToken: state=%s token=%s value=%s", this.state, token, value);
+  console.log("OnToken: state=%s token=%s value=%s", toknam(this.state), toknam(token), value);
   switch (this.state) {
-  case START:
+  case VALUE:
     switch (token) {
     case STRING: case NUMBER: case TRUE: case FALSE: case NULL:
       if (this.value) {

@@ -14,14 +14,6 @@ t.write(new Buffer("lse"));
 t.write(new Buffer(JSON.stringify({"Hello":"World"})));
 */
 var p = new Parser();
-p.tokenizer.syntaxError = function (buffer, i) {
-  console.dir({n:buffer[i],t:this,a:arguments});
-  throw new Error("Syntax Error in Tokenizer");
-};
-p.syntaxError = function (token, value) {
-  console.dir({t:this,token:token,value:value});
-  throw new Error("Syntax Error in Parser");
-};
 p.onValue = function (value) {
   if (!this.stack.length) {
     console.log("VALUE: %s", JSON.stringify(value));
