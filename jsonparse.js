@@ -1,3 +1,4 @@
+/*global Buffer*/
 // Tokens
 var LEFT_BRACE    = 0x7b,
     RIGHT_BRACE   = 0x7d,
@@ -40,7 +41,13 @@ function Tokenizer() {
   this.data = [];
 }
 Tokenizer.prototype.write = function (buffer) {
-  console.dir(buffer);
+  // TODO: Don't require this conversion to accept strings
+  // It's probably quite expensive
+  if (typeof buffer === 'string') {
+    buffer = new Buffer(buffer);
+  }
+  process.stdout.write("Input: ");
+  console.dir(buffer.toString());
   var n;
   for (var i = 0, l = buffer.length; i < l; i++) {
     switch (this.state) {
@@ -60,8 +67,11 @@ Tokenizer.prototype.write = function (buffer) {
       case 0x2d: this.data.push(n); this.state = NUMBER1; break; // -
       case 0x30: this.data.push(n); this.state = NUMBER2; break; // 0
       default:
-        if (n > 0x30 && n < 0x40) { this.data.push(n); this.state = NUMBER3; } // 1-0
-        else { this.syntaxError(buffer, i); }
+        if (n > 0x30 && n < 0x40) { // 1-9
+          this.data.push(n); this.state = NUMBER3;
+        } else if (n === 0x20 || n === 0x09 || n === 0x0a || n === 0x0d) {
+          // whitespace
+        } else { this.syntaxError(buffer, i); }
         break;
       }
       break;
@@ -189,10 +199,127 @@ Tokenizer.prototype.write = function (buffer) {
 Tokenizer.prototype.emit = function (token) {
   var value;
   if (this.data.length) {
-    value = new Buffer(this.data).toString('ascii');
-    this.data = [];
+    value = JSON.parse(new Buffer(this.data).toString());
+    this.data.length = 0;
   }
-  console.log("%s %s", token, value);
+  else if (token === TRUE) { value = true; }
+  else if (token === FALSE) { value = false; }
+  else if (token === NULL) { value = null; }
+  this.onToken(token, value);
+};
+Tokenizer.prototype.onToken = function (token, value) {
+  // Override this to get events
 };
 
+var VALUE = 0,
+    KEY = 1;
+
+function Parser(tokenizer) {
+  var t = this.tokenizer = tokenizer || new Tokenizer();
+  t.onToken = this.onToken.bind(this);
+  this.write = t.write.bind(t);
+
+  this.value = undefined;
+  this.key = undefined;
+  this.mode = undefined;
+  this.stack = [];
+  this.state = VALUE;
+}
+Parser.prototype.push = function () {
+  this.stack.push({value: this.value, key: this.key, mode: this.mode});
+};
+Parser.prototype.pop = function () {
+  var value = this.value;
+  var parent = this.stack.pop();
+  this.value = parent.value;
+  this.key = parent.key;
+  this.mode = parent.mode;
+  this.emit(value);
+};
+Parser.prototype.emit = function (value) {
+  if (this.mode) { this.state = COMMA; }
+  this.onValue(value);
+};
+Parser.prototype.onValue = function (value) {
+  // Override me
+};  
+Parser.prototype.onToken = function (token, value) {
+  console.log("OnToken: state=%s token=%s value=%s", this.state, token, value);
+  switch (this.state) {
+  case START:
+    switch (token) {
+    case STRING: case NUMBER: case TRUE: case FALSE: case NULL:
+      if (this.value) {
+        this.value[this.key] = value;
+      }
+      this.emit(value);
+    break;  
+    case LEFT_BRACE:
+      this.push();
+      if (this.value) {
+        this.value = this.value[this.key] = {};
+      } else {
+        this.value = {};
+      }
+      this.key = undefined;
+      this.state = KEY;
+      this.mode = KEY;
+      break;
+    case LEFT_BRACKET:
+      this.push();
+      if (this.value) {
+        this.value = this.value[this.key] = [];
+      } else {
+        this.value = [];
+      }
+      this.key = 0;
+      this.mode = VALUE;
+      break;
+    case RIGHT_BRACE:
+      if (this.mode === KEY) {
+        this.pop();
+      } else {
+        this.syntaxError(token, value);
+      }
+      break;
+    case RIGHT_BRACKET:
+      if (this.mode === VALUE) {
+        this.pop();
+      } else {
+        this.syntaxError(token, value);
+      }
+      break;
+    default:
+      this.syntaxError(token, value); break;
+    }
+    break;
+  case KEY:
+    if (token === STRING) {
+      this.key = value;
+      this.state = COLON;
+    } else {
+      this.syntaxError(token, value);
+    }
+    break;
+  case COLON:
+    if (token === COLON) { this.state = VALUE; }
+    else { this.syntaxError(token, value); }
+    break;
+  case COMMA:
+    if (token === COMMA) { 
+      if (this.MODE === VALUE) { this.key++; }
+      this.state = this.mode;
+    } else if (token === RIGHT_BRACE && this.mode === KEY || token === RIGHT_BRACKET && this.mode !==KEY) {
+      this.pop();
+    } else {
+      this.syntaxError(token, value);
+    }
+    break;
+  default:
+    this.syntaxError(token, value);
+  }
+};
+
+
 exports.Tokenizer = Tokenizer;
+exports.Parser = Parser;
