@@ -1,51 +1,50 @@
 /*global Buffer*/
 // Named constants with unique integer values
-var C = {}, uniq = 0;
+var C = {};
 // Tokens
-var LEFT_BRACE    = C.LEFT_BRACE    = uniq++;
-var RIGHT_BRACE   = C.RIGHT_BRACE   = uniq++;
-var LEFT_BRACKET  = C.LEFT_BRACKET  = uniq++;
-var RIGHT_BRACKET = C.RIGHT_BRACKET = uniq++;
-var COLON         = C.COLON         = uniq++;
-var COMMA         = C.COMMA         = uniq++;
-var TRUE          = C.TRUE          = uniq++;
-var FALSE         = C.FALSE         = uniq++;
-var NULL          = C.NULL          = uniq++;
-var STRING        = C.STRING        = uniq++;
-var NUMBER        = C.NUMBER        = uniq++;
+var LEFT_BRACE    = C.LEFT_BRACE    = 0x1;
+var RIGHT_BRACE   = C.RIGHT_BRACE   = 0x2;
+var LEFT_BRACKET  = C.LEFT_BRACKET  = 0x3;
+var RIGHT_BRACKET = C.RIGHT_BRACKET = 0x4;
+var COLON         = C.COLON         = 0x5;
+var COMMA         = C.COMMA         = 0x6;
+var TRUE          = C.TRUE          = 0x7;
+var FALSE         = C.FALSE         = 0x8;
+var NULL          = C.NULL          = 0x9;
+var STRING        = C.STRING        = 0xa;
+var NUMBER        = C.NUMBER        = 0xb;
 // Tokenizer States
-var START   = C.START   = uniq++;
-var TRUE1   = C.TRUE1   = uniq++;
-var TRUE2   = C.TRUE2   = uniq++;
-var TRUE3   = C.TRUE3   = uniq++;
-var FALSE1  = C.FALSE1  = uniq++;
-var FALSE2  = C.FALSE2  = uniq++;
-var FALSE3  = C.FALSE3  = uniq++;
-var FALSE4  = C.FALSE4  = uniq++;
-var NULL1   = C.NULL1   = uniq++;
-var NULL2   = C.NULL3   = uniq++;
-var NULL3   = C.NULL2   = uniq++;
-var NUMBER1 = C.NUMBER1 = uniq++;
-var NUMBER2 = C.NUMBER2 = uniq++;
-var NUMBER3 = C.NUMBER3 = uniq++;
-var NUMBER4 = C.NUMBER4 = uniq++;
-var NUMBER5 = C.NUMBER5 = uniq++;
-var NUMBER6 = C.NUMBER6 = uniq++;
-var NUMBER7 = C.NUMBER7 = uniq++;
-var NUMBER8 = C.NUMBER8 = uniq++;
-var STRING1 = C.STRING1 = uniq++;
-var STRING2 = C.STRING2 = uniq++;
-var STRING3 = C.STRING3 = uniq++;
-var STRING4 = C.STRING4 = uniq++;
-var STRING5 = C.STRING5 = uniq++;
-var STRING6 = C.STRING6 = uniq++;
+var START   = C.START   = 0x11;
+var TRUE1   = C.TRUE1   = 0x21;
+var TRUE2   = C.TRUE2   = 0x22;
+var TRUE3   = C.TRUE3   = 0x23;
+var FALSE1  = C.FALSE1  = 0x31;
+var FALSE2  = C.FALSE2  = 0x32;
+var FALSE3  = C.FALSE3  = 0x33;
+var FALSE4  = C.FALSE4  = 0x34;
+var NULL1   = C.NULL1   = 0x41;
+var NULL2   = C.NULL3   = 0x42;
+var NULL3   = C.NULL2   = 0x43;
+var NUMBER1 = C.NUMBER1 = 0x51;
+var NUMBER2 = C.NUMBER2 = 0x52;
+var NUMBER3 = C.NUMBER3 = 0x53;
+var NUMBER4 = C.NUMBER4 = 0x54;
+var NUMBER5 = C.NUMBER5 = 0x55;
+var NUMBER6 = C.NUMBER6 = 0x56;
+var NUMBER7 = C.NUMBER7 = 0x57;
+var NUMBER8 = C.NUMBER8 = 0x58;
+var STRING1 = C.STRING1 = 0x61;
+var STRING2 = C.STRING2 = 0x62;
+var STRING3 = C.STRING3 = 0x63;
+var STRING4 = C.STRING4 = 0x64;
+var STRING5 = C.STRING5 = 0x65;
+var STRING6 = C.STRING6 = 0x66;
 // Parser States
-var VALUE   = C.VALUE   = uniq++;
-var KEY     = C.KEY     = uniq++;
-//  COMMA
+var VALUE   = C.VALUE   = 0x71;
+var KEY     = C.KEY     = 0x72;
 // Parser Modes
-var OBJECT  = C.OBJECT  = uniq++;
-var ARRAY   = C.ARRAY   = uniq++;
+var OBJECT  = C.OBJECT  = 0x81;
+var ARRAY   = C.ARRAY   = 0x82;
 
 function toknam(code) {
   var keys = Object.keys(C);
