@@ -15,11 +15,16 @@ t.write(new Buffer(JSON.stringify({"Hello":"World"})));
 */
 var p = new Parser();
 p.onValue = function (value) {
-  if (!this.stack.length) {
-    console.log("VALUE: %s", JSON.stringify(value));
-  }
+  var path = this.stack.map(function (item) {
+    return "." + (item.key || this.key);
+  }, this).join('');
+
+  console.log("onValue: value%s = %s", path, JSON.stringify(value));
 };
-p.write('{"name": "Tim", "age": 28}');
+p.write(JSON.stringify([1,2,3]));
+p.write(JSON.stringify([]));
+p.write(JSON.stringify([[]]));
+//p.write('{"name": "Tim", "age": 28}');
 /*
 p.write(new Buffer("123false1.3true{}[]"));
 p.write(new Buffer('{ "name": "Tim", "age": 28 }'));

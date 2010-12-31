@@ -256,15 +256,14 @@ Parser.prototype.push = function () {
   this.stack.push({value: this.value, key: this.key, mode: this.mode});
 };
 Parser.prototype.pop = function () {
-  var value = this.value;
   var parent = this.stack.pop();
+  this.emit(this.value);
   this.value = parent.value;
   this.key = parent.key;
   this.mode = parent.mode;
-  this.emit(value);
 };
 Parser.prototype.emit = function (value) {
-  if (this.mode) { this.state = COMMA; }
+  if (this.mode) { this.state = this.mode; }
   this.onValue(value);
 };
 Parser.prototype.onValue = function (value) {
@@ -300,7 +299,8 @@ Parser.prototype.onToken = function (token, value) {
         this.value = [];
       }
       this.key = 0;
-      this.mode = VALUE;
+      this.mode = COMMA;
+      this.state = VALUE;
       break;
     case RIGHT_BRACE:
       if (this.mode === KEY) {
@@ -324,6 +324,8 @@ Parser.prototype.onToken = function (token, value) {
     if (token === STRING) {
       this.key = value;
       this.state = COLON;
+    } else if (token === RIGHT_BRACE) {
+      this.pop();
     } else {
       this.syntaxError(token, value);
     }
@@ -334,9 +336,9 @@ Parser.prototype.onToken = function (token, value) {
     break;
   case COMMA:
     if (token === COMMA) { 
-      if (this.MODE === VALUE) { this.key++; }
-      this.state = this.mode;
-    } else if (token === RIGHT_BRACE && this.mode === KEY || token === RIGHT_BRACKET && this.mode !==KEY) {
+      if (this.mode === COMMA) { this.key++; }
+      this.state = VALUE;
+    } else if (token === RIGHT_BRACKET) {
       this.pop();
     } else {
       this.syntaxError(token, value);
