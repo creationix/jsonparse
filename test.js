@@ -21,10 +21,15 @@ p.onValue = function (value) {
 
   console.log("onValue: value%s = %s", path, JSON.stringify(value));
 };
-p.write(JSON.stringify([1,2,3]));
-p.write(JSON.stringify([]));
-p.write(JSON.stringify([[]]));
-//p.write('{"name": "Tim", "age": 28}');
+//p.write(JSON.stringify([1,2,3]));
+//p.write(JSON.stringify([]));
+//p.write(JSON.stringify([[]]));
+p.write('{"name": "Tim", "age": 28}');
+p.write('{}');
+p.write('[{"name":null}]');
+p.write('[{}]');
+p.write('[{},[],{}]');
+p.write('{"a":[],"b":{}}');
 /*
 p.write(new Buffer("123false1.3true{}[]"));
 p.write(new Buffer('{ "name": "Tim", "age": 28 }'));

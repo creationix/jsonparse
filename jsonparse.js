@@ -40,8 +40,12 @@ var STRING4 = C.STRING4 = uniq++;
 var STRING5 = C.STRING5 = uniq++;
 var STRING6 = C.STRING6 = uniq++;
 // Parser States
-var VALUE = C.VALUE = uniq++;
-var KEY   = C.KEY   = uniq++;
+var VALUE   = C.VALUE   = uniq++;
+var KEY     = C.KEY     = uniq++;
+//  COMMA
+// Parser Modes
+var OBJECT  = C.OBJECT  = uniq++;
+var ARRAY   = C.ARRAY   = uniq++;
 
 function toknam(code) {
   var keys = Object.keys(C);
@@ -244,7 +248,7 @@ function Parser(tokenizer) {
 
   this.value = undefined;
   this.key = undefined;
-  this.mode = VALUE;
+  this.mode = undefined;
   this.stack = [];
   this.state = VALUE;
 }
@@ -261,17 +265,17 @@ Parser.prototype.pop = function () {
   this.value = parent.value;
   this.key = parent.key;
   this.mode = parent.mode;
-  this.state = this.mode;
+  if (!this.mode) { this.state = VALUE; }
 };
 Parser.prototype.emit = function (value) {
-  if (this.mode) { this.state = this.mode; }
+  if (this.mode) { this.state = COMMA; }
   this.onValue(value);
 };
 Parser.prototype.onValue = function (value) {
   // Override me
 };  
 Parser.prototype.onToken = function (token, value) {
-  console.log("OnToken: state=%s token=%s value=%s", toknam(this.state), toknam(token), value);
+  console.log("OnToken: state=%s token=%s %s", toknam(this.state), toknam(token), value?JSON.stringify(value):"");
   switch (this.state) {
   case VALUE:
     switch (token) {
@@ -290,7 +294,7 @@ Parser.prototype.onToken = function (token, value) {
       }
       this.key = undefined;
       this.state = KEY;
-      this.mode = KEY;
+      this.mode = OBJECT;
       break;
     case LEFT_BRACKET:
       this.push();
@@ -300,18 +304,18 @@ Parser.prototype.onToken = function (token, value) {
         this.value = [];
       }
       this.key = 0;
-      this.mode = COMMA;
+      this.mode = ARRAY;
       this.state = VALUE;
       break;
     case RIGHT_BRACE:
-      if (this.mode === KEY) {
+      if (this.mode === OBJECT) {
         this.pop();
       } else {
         this.syntaxError(token, value);
       }
       break;
     case RIGHT_BRACKET:
-      if (this.mode === COMMA) {
+      if (this.mode === ARRAY) {
         this.pop();
       } else {
         this.syntaxError(token, value);
@@ -337,9 +341,11 @@ Parser.prototype.onToken = function (token, value) {
     break;
   case COMMA:
     if (token === COMMA) { 
-      if (this.mode === COMMA) { this.key++; }
-      this.state = VALUE;
-    } else if (token === RIGHT_BRACKET) {
+      console.log("MODE %s", toknam(this.mode));
+      if (this.mode === ARRAY) { this.key++; this.state = VALUE; }
+      else if (this.mode === OBJECT) { this.state = KEY; }
+
+    } else if (token === RIGHT_BRACKET && this.mode === ARRAY || token === RIGHT_BRACE && this.mode === OBJECT) {
       this.pop();
     } else {
       this.syntaxError(token, value);
