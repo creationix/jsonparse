@@ -46,6 +46,7 @@ var KEY     = C.KEY     = 0x72;
 var OBJECT  = C.OBJECT  = 0x81;
 var ARRAY   = C.ARRAY   = 0x82;
 
+// Slow code to string converter (only used when throwing syntax errors)
 function toknam(code) {
   var keys = Object.keys(C);
   for (var i = 0, l = keys.length; i < l; i++) {
@@ -58,8 +59,18 @@ function toknam(code) {
 
 function Parser() {
   this.tState = START;
-  this.data = [];
   this.value = undefined;
+
+  this.string = undefined; // string data
+  this.unicode = undefined; // unicode escapes
+
+  // For number parsing
+  this.negative = undefined;
+  this.magnatude = undefined;
+  this.position = undefined;
+  this.exponent = undefined;
+  this.negativeExponent = undefined;
+  
   this.key = undefined;
   this.mode = undefined;
   this.stack = [];
@@ -84,21 +95,21 @@ proto.write = function (buffer) {
     case START:
       n = buffer[i];
       switch (n) {
-      case 0x7b: this.emitToken(LEFT_BRACE); break; // {
-      case 0x7d: this.emitToken(RIGHT_BRACE); break; // }
-      case 0x5b: this.emitToken(LEFT_BRACKET); break; // [
-      case 0x5d: this.emitToken(RIGHT_BRACKET); break; // ]
-      case 0x3a: this.emitToken(COLON); break; // :
-      case 0x2c: this.emitToken(COMMA); break; // ,
+      case 0x7b: this.onToken(LEFT_BRACE, "{"); break; // {
+      case 0x7d: this.onToken(RIGHT_BRACE, "}"); break; // }
+      case 0x5b: this.onToken(LEFT_BRACKET, "["); break; // [
+      case 0x5d: this.onToken(RIGHT_BRACKET, "]"); break; // ]
+      case 0x3a: this.onToken(COLON, ":"); break; // :
+      case 0x2c: this.onToken(COMMA, ","); break; // ,
       case 0x74: this.tState = TRUE1; break; // t
       case 0x66: this.tState = FALSE1; break; // f
       case 0x6e: this.tState = NULL1; break; // n
-      case 0x22: this.data.push(n); this.tState = STRING1; break; // "
-      case 0x2d: this.data.push(n); this.tState = NUMBER1; break; // -
-      case 0x30: this.data.push(n); this.tState = NUMBER2; break; // 0
+      case 0x22: this.string = ""; this.tState = STRING1; break; // "
+      case 0x2d: this.negative = true; this.tState = NUMBER1; break; // -
+      case 0x30: this.magnatude = 0; this.tState = NUMBER2; break; // 0
       default:
         if (n > 0x30 && n < 0x40) { // 1-9
-          this.data.push(n); this.tState = NUMBER3;
+          this.magnatude = n - 0x30; this.tState = NUMBER3;
         } else if (n === 0x20 || n === 0x09 || n === 0x0a || n === 0x0d) {
           // whitespace
         } else { this.charError(buffer, i); }
@@ -108,80 +119,151 @@ proto.write = function (buffer) {
     case STRING1: // After open quote
       n = buffer[i];
       // TODO: Handle native utf8 characters, this code assumes ASCII input
-      if (n === 0x22) { this.data.push(n); this.tState = START; this.emitToken(STRING); }
-      else if (n === 0x5c) { this.data.push(n); this.tState = STRING2; }
-      else { this.data.push(n); }
+      if (n === 0x22) { this.tState = START; this.onToken(STRING, this.string); this.string = undefined; }
+      else if (n === 0x5c) { this.tState = STRING2; }
+      else if (n >= 0x20) { this.string += String.fromCharCode(n); }
+      else { this.charError(buffer, i); }
       break;
     case STRING2: // After backslash
       n = buffer[i];
       switch (n) {
-      case 0x22: case 0x5c: case 0x2f: case 0x62: case 0x66: case 0x6e: case 0x72: case 0x74: // "\/bfnrt
-        this.data.push(n); this.tState = STRING1; break;
-      case 0x75: this.data.push(n); this.tState = STRING3; break;
+      case 0x22: this.string += "\""; this.tState = STRING1; break;
+      case 0x5c: this.string += "\\"; this.tState = STRING1; break;
+      case 0x2f: this.string += "\/"; this.tState = STRING1; break;
+      case 0x62: this.string += "\b"; this.tState = STRING1; break;
+      case 0x66: this.string += "\f"; this.tState = STRING1; break;
+      case 0x6e: this.string += "\n"; this.tState = STRING1; break;
+      case 0x72: this.string += "\r"; this.tState = STRING1; break;
+      case 0x74: this.string += "\t"; this.tState = STRING1; break;
+      case 0x75: this.unicode = ""; this.tState = STRING3; break;
       default: this.charError(buffer, i); break;
       }
       break;
-    case STRING3: case STRING4: case STRING4: case STRING6: // unicode hex codes
+    case STRING3: case STRING4: case STRING5: case STRING6: // unicode hex codes
       n = buffer[i];
       // 0-9 A-F a-f
       if ((n >= 0x30 && n < 0x40) || (n > 0x40 && n <= 0x46) || (n > 0x60 && n <= 0x66)) {
-        this.data.push(n);
-        if (this.tState++ === STRING6) { this.tState = STRING1; }
+        this.unicode += String.fromCharCode(n);
+        if (this.tState++ === STRING6) {
+          this.string += String.fromCharCode(parseInt(this.unicode, 16));
+          this.unicode = undefined;
+          this.tState = STRING1; 
+        }
       } else {
         this.charError(buffer, i);
       }
       break;
     case NUMBER1: // after minus
       n = buffer[i];
-      if (n === 0x30) { this.data.push(n); this.tState = NUMBER2; }
-      else if (n > 0x30 && n < 0x40) { this.data.push(n); this.tState = NUMBER3; }
+      if (n === 0x30) { this.magnatude = 0; this.tState = NUMBER2; }
+      else if (n > 0x30 && n < 0x40) { this.magnatude = n - 0x30; this.tState = NUMBER3; }
       else { this.charError(buffer, i); }
       break;
     case NUMBER2: // * After initial zero
       switch (buffer[i]) {
-      case 0x2e: this.data.push(0x2e); this.tState = NUMBER4; break; // .
-      case 0x65: this.data.push(0x65); this.tState = NUMBER6; break; // e
-      case 0x45: this.data.push(0x45); this.tState = NUMBER6; break; // E
-      default: this.tState = START; this.emitToken(NUMBER); i--; break;
+      case 0x2e: // .
+        this.position = 0.1; this.tState = NUMBER4; break;
+      case 0x65: case 0x45: // e/E
+        this.exponent = 0; this.tState = NUMBER6; break;
+      default:
+        this.tState = START;
+        this.onToken(NUMBER, 0);
+        this.magnatude = undefined;
+        this.negative = undefined;
+        i--;
+        break;
       }
       break;
     case NUMBER3: // * After digit (before period)
       n = buffer[i];
       switch (n) {
-      case 0x2e: this.data.push(0x2e); this.tState = NUMBER4; break; // .
-      case 0x65: this.data.push(0x65); this.tState = NUMBER6; break; // e
-      case 0x45: this.data.push(0x45); this.tState = NUMBER6; break; // E
+      case 0x2e: // .
+        this.position = 0.1; this.tState = NUMBER4; break;
+      case 0x65: case 0x45: // e/E
+        this.exponent = 0; this.tState = NUMBER6; break;
       default: 
-        if (n >= 0x30 && n < 0x40) { this.data.push(n); }
-        else {this.tState = START; this.emitToken(NUMBER); i--; break; }
+        if (n >= 0x30 && n < 0x40) { this.magnatude = this.magnatude * 10 + n - 0x30; }
+        else {
+          this.tState = START; 
+          if (this.negative) {
+            this.magnatude = -this.magnatude;
+            this.negative = undefined;
+          }
+          this.onToken(NUMBER, this.magnatude); 
+          this.magnatude = undefined;
+          i--;
+        }
+        break;
       }
       break;
     case NUMBER4: // After period
       n = buffer[i];
-      if (n >= 0x30 && n < 0x40) { this.data.push(n); this.tState = NUMBER5; } // 0-9
-      else { this.charError(buffer, i); }
+      if (n >= 0x30 && n < 0x40) { // 0-9
+        this.magnatude += this.position * (n - 0x30);
+        this.position /= 10;
+        this.tState = NUMBER5; 
+      } else { this.charError(buffer, i); }
       break;
     case NUMBER5: // * After digit (after period)
       n = buffer[i];
-      if (n >= 0x30 && n < 0x40) { this.data.push(n); } // 0-9
-      else if (n === 0x65 || n === 0x45) { this.data.push(n); this.tState = NUMBER6; } // E/e
-      else { this.tState = START; this.emitToken(NUMBER); i--; }
+      if (n >= 0x30 && n < 0x40) { // 0-9
+        this.magnatude += this.position * (n - 0x30);
+        this.position /= 10;
+      }
+      else if (n === 0x65 || n === 0x45) { this.exponent = 0; this.tState = NUMBER6; } // E/e
+      else {
+        this.tState = START; 
+        if (this.negative) {
+          this.magnatude = -this.magnatude;
+          this.negative = undefined;
+        }
+        this.onToken(NUMBER, this.negative ? -this.magnatude : this.magnatude); 
+        this.magnatude = undefined;
+        this.position = undefined;
+        i--; 
+      }
       break;
     case NUMBER6: // After E
       n = buffer[i];
-      if (n === 0x2b || n === 0x2d) { this.data.push(n); this.tState = NUMBER7; } // +/-
-      else if (n >= 0x30 && n < 0x40) { this.data.push(n); this.tState = NUMBER8; } // 0-9  
+      if (n === 0x2b || n === 0x2d) { // +/-
+        if (n === 0x2d) { this.negativeExponent = true; }
+        this.tState = NUMBER7;
+      }
+      else if (n >= 0x30 && n < 0x40) {
+        this.exponent = this.exponent * 10 + (n - 0x30);
+        this.tState = NUMBER8;
+      }
       else { this.charError(buffer, i); }  
       break;
     case NUMBER7: // After +/-
       n = buffer[i];
-      if (n >= 0x30 && n < 0x40) { this.data.push(n); this.tState = NUMBER8; } // 0-9
+      if (n >= 0x30 && n < 0x40) { // 0-9
+        this.exponent = this.exponent * 10 + (n - 0x30);
+        this.state = NUMBER8;
+      }
       else { this.charError(buffer, i); }  
       break;
     case NUMBER8: // * After digit (after +/-)
       n = buffer[i];
-      if (n >= 0x30 && n < 0x40) { this.data.push(n); this.tState = NUMBER8; } // 0-9
-      else { this.tState = START; this.emitToken(NUMBER); i--; }  
+      if (n >= 0x30 && n < 0x40) { // 0-9
+        this.exponent = this.exponent * 10 + (n - 0x30);
+      }
+      else {
+        if (this.negativeExponent) {
+          this.exponent = -this.exponent;
+          this.negativeExponent = undefined;
+        }
+        this.magnatude *= Math.pow(10, this.exponent);
+        this.exponent = undefined;
+        if (this.negative) { 
+          this.magnatude = -this.magnatude;
+          this.negative = undefined;
+        }
+        this.tState = START;
+        this.onToken(NUMBER, this.magnatude);
+        this.magnatude = undefined;
+        i--; 
+      }  
       break;
     case TRUE1: // r
       if (buffer[i] === 0x72) { this.tState = TRUE2; }
@@ -192,7 +274,7 @@ proto.write = function (buffer) {
       else { this.charError(buffer, i); }
       break;
     case TRUE3: // e
-      if (buffer[i] === 0x65) { this.tState = START; this.emitToken(TRUE); }
+      if (buffer[i] === 0x65) { this.tState = START; this.onToken(TRUE, true); }
       else { this.charError(buffer, i); }
       break;
     case FALSE1: // a
@@ -208,7 +290,7 @@ proto.write = function (buffer) {
       else { this.charError(buffer, i); }
       break;
     case FALSE4: // e
-      if (buffer[i] === 0x65) { this.tState = START; this.emitToken(FALSE); }
+      if (buffer[i] === 0x65) { this.tState = START; this.onToken(FALSE, false); }
       else { this.charError(buffer, i); }
       break;
     case NULL1: // u
@@ -220,22 +302,11 @@ proto.write = function (buffer) {
       else { this.charError(buffer, i); }
       break;
     case NULL3: // l
-      if (buffer[i] === 0x6c) { this.tState = START; this.emitToken(NULL); }
+      if (buffer[i] === 0x6c) { this.tState = START; this.onToken(NULL, null); }
       else { this.charError(buffer, i); }
       break;
     }
   }
-};
-proto.emitToken = function (token) {
-  var value;
-  if (this.data.length) {
-    value = JSON.parse(new Buffer(this.data).toString());
-    this.data.length = 0;
-  }
-  else if (token === TRUE) { value = true; }
-  else if (token === FALSE) { value = false; }
-  else if (token === NULL) { value = null; }
-  this.onToken(token, value);
 };
 proto.onToken = function (token, value) {
   // Override this to get events
@@ -344,6 +415,5 @@ proto.onToken = function (token, value) {
     this.parseError(token, value);
   }
 };
-
 
 module.exports = Parser;

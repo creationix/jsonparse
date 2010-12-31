@@ -4,18 +4,10 @@ var fs = require('fs'),
 
 var json = fs.readFileSync("samplejson/basic.json");
 
-// Make sure it's parsing correctly before any benchmarking is done
-var t = new Parser();
-var v;
-t.onValue = function (value) { v = value; };
-t.write(json);
-if (JSON.stringify(v) !== JSON.stringify(JSON.parse(json))) {
-  throw new Error("Invalid parse result:\n" + JSON.stringify(v));
-}
 
 while (true) {
   var start = Date.now();
-  for (var i = 0; i < 300; i++) {
+  for (var i = 0; i < 1000; i++) {
     JSON.parse(json);
   }
   var first = Date.now() - start;
@@ -23,7 +15,7 @@ while (true) {
 
   start = Date.now();
   var p = new Parser();
-  for (var i = 0; i < 300; i++) {
+  for (var i = 0; i < 1000; i++) {
     p.write(json);
   }
   var second = Date.now() - start;
