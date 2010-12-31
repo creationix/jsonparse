@@ -1,1 +1,1 @@
-This is in progress.  The SAX style tokenizer is complete, but probably could use some unit testing.
+This is a work in progress.  It works in minimal testing, but probably has bugs
