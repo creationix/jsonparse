@@ -276,7 +276,7 @@ Parser.prototype.onValue = function (value) {
   // Override me
 };  
 Parser.prototype.onToken = function (token, value) {
-  console.log("OnToken: state=%s token=%s %s", toknam(this.state), toknam(token), value?JSON.stringify(value):"");
+  // console.log("OnToken: state=%s token=%s %s", toknam(this.state), toknam(token), value?JSON.stringify(value):"");
   switch (this.state) {
   case VALUE:
     switch (token) {

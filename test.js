@@ -20,8 +20,11 @@ p.onValue = function (value) {
   }, this);
   keys.push('.' + this.key);
   keys.shift();
-
-  console.log("onValue: value%s = %s\n", keys.join(''), JSON.stringify(value));
+  var o = JSON.stringify(value);
+  if (o.length > 80) {
+    o = o.substr(0, 77) + "...";
+  }
+  console.log("value%s = %s", keys.join(''), o);
 };
 //p.write(JSON.stringify([1,2,3]));
 //p.write(JSON.stringify([]));
@@ -32,6 +35,10 @@ p.write('[{"name":null}]');
 p.write('[{}]');
 p.write('[{},[],{}]');
 p.write('{"a":[],"b":{}}');
+require('fs').readFile('samplejson/basic.json', function (err, buffer) {
+  if (err) { throw err; }
+  p.write(buffer);
+});
 /*
 p.write(new Buffer("123false1.3true{}[]"));
 p.write(new Buffer('{ "name": "Tim", "age": 28 }'));
