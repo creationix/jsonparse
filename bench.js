@@ -11,7 +11,6 @@ while (true) {
     JSON.parse(json);
   }
   var first = Date.now() - start;
-  console.log("JSON.parse took %s", first);
 
   start = Date.now();
   var p = new Parser();
@@ -19,6 +18,9 @@ while (true) {
     p.write(json);
   }
   var second = Date.now() - start;
+
+
+  console.log("JSON.parse took %s", first);
   console.log("streaming parser took %s", second);
   console.log("streaming is %s times slower", second / first);
 }
