@@ -82,11 +82,6 @@ proto.charError = function (buffer, i) {
 };
 proto.onError = function (err) { throw err; };
 proto.write = function (buffer) {
-  // TODO: Don't require this conversion to accept strings
-  // It's probably quite expensive
-  if (typeof buffer === 'string') {
-    buffer = new Buffer(buffer);
-  }
   //process.stdout.write("Input: ");
   //console.dir(buffer.toString());
   var n;
