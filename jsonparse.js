@@ -39,9 +39,6 @@ var STRING3 = C.STRING3 = 0x63;
 var STRING4 = C.STRING4 = 0x64;
 var STRING5 = C.STRING5 = 0x65;
 var STRING6 = C.STRING6 = 0x66;
-var STRING7 = C.STRING7 = 0x67;
-var STRING8 = C.STRING8 = 0x68;
-var STRING9 = C.STRING9 = 0x69;
 // Parser States
 var VALUE   = C.VALUE   = 0x71;
 var KEY     = C.KEY     = 0x72;
@@ -66,7 +63,6 @@ function Parser() {
 
   this.string = undefined; // string data
   this.unicode = undefined; // unicode escapes
-  this.codepoint = undefined; // Codepoint for multibyte chars
 
   // For number parsing
   this.negative = undefined;
@@ -86,6 +82,7 @@ proto.charError = function (buffer, i) {
 };
 proto.onError = function (err) { throw err; };
 proto.write = function (buffer) {
+  if (typeof buffer === "string") buffer = new Buffer(buffer);
   //process.stdout.write("Input: ");
   //console.dir(buffer.toString());
   var n;
@@ -117,17 +114,8 @@ proto.write = function (buffer) {
       break;
     case STRING1: // After open quote
       n = buffer[i];
-      if (n & 0xf0 && (!n & 0x08)) { // Other Unicode Planes
-        this.codePoint = (n & 0x07) << 18;
-        this.tState = STRING9;
-      } else if (n & 0xe0 && (!n & 0x10)) { // Basic Multilingual plane
-        this.codePoint = (n & 0x0f) << 12;
-        this.tState = STRING8;
-      } else if (n & 0xc0 && (!n & 0x20)) { // Extended characters
-        this.codePoint = (n & 0x1f) << 6;
-        this.tState = STRING7;
-      } 
-      else if (n === 0x22) { this.tState = START; this.onToken(STRING, this.string); this.string = undefined; }
+      // TODO: Handle native utf8 characters, this code assumes ASCII input
+      if (n === 0x22) { this.tState = START; this.onToken(STRING, this.string); this.string = undefined; }
       else if (n === 0x5c) { this.tState = STRING2; }
       else if (n >= 0x20) { this.string += String.fromCharCode(n); }
       else { this.charError(buffer, i); }
@@ -160,22 +148,6 @@ proto.write = function (buffer) {
       } else {
         this.charError(buffer, i);
       }
-      break;
-    case STRING7:
-      this.codePoint += (buffer[i] && 0x3f)
-      console.log("CharPoint: " + this.codePoint.toString(16));
-      this.string += String.fromCharCode(codePoint);
-      console.dir(string);
-      this.codePoint = undefined;
-      this.tState = STRING1;
-      break;
-    case STRING8:
-      this.codePoint += (buffer[i] && 0x3f) << 6;
-      this.tState = STRING7;
-      break;
-    case STRING9:
-      this.codePoint += (buffer[i] && 0x3f) << 12;
-      this.tState = STRING8;
       break;
     case NUMBER1: // after minus
       n = buffer[i];
