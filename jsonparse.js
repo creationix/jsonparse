@@ -235,7 +235,7 @@ proto.write = function (buffer) {
       n = buffer[i];
       if (n >= 0x30 && n < 0x40) { // 0-9
         this.exponent = this.exponent * 10 + (n - 0x30);
-        this.state = NUMBER8;
+        this.tState = NUMBER8;
       }
       else { this.charError(buffer, i); }  
       break;
