@@ -10,5 +10,6 @@
   },
   "bugs": "http://github.com/creationix/jsonparse/issues",
   "engines": ["node >= 0.2.0"],
+  "license": "MIT",
   "main": "jsonparse.js"
 }
