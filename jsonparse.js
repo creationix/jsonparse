@@ -333,16 +333,13 @@ proto.onValue = function (value) {
 };  
 proto.onToken = function (token, value) {
   //console.log("OnToken: state=%s token=%s %s", toknam(this.state), toknam(token), value?JSON.stringify(value):"");
-  switch (this.state) {
-  case VALUE:
-    switch (token) {
-    case STRING: case NUMBER: case TRUE: case FALSE: case NULL:
+  if(this.state === VALUE){
+    if(token === STRING || token === NUMBER || token === TRUE || token === FALSE || token === NULL){
       if (this.value) {
         this.value[this.key] = value;
       }
-      this.emit(value);
-    break;  
-    case LEFT_BRACE:
+      this.emit(value);  
+    }else if(token === LEFT_BRACE){
       this.push();
       if (this.value) {
         this.value = this.value[this.key] = {};
@@ -352,8 +349,7 @@ proto.onToken = function (token, value) {
       this.key = undefined;
       this.state = KEY;
       this.mode = OBJECT;
-      break;
-    case LEFT_BRACKET:
+    }else if(token === LEFT_BRACKET){
       this.push();
       if (this.value) {
         this.value = this.value[this.key] = [];
@@ -363,26 +359,22 @@ proto.onToken = function (token, value) {
       this.key = 0;
       this.mode = ARRAY;
       this.state = VALUE;
-      break;
-    case RIGHT_BRACE:
+    }else if(token === RIGHT_BRACE){
       if (this.mode === OBJECT) {
         this.pop();
       } else {
         this.parseError(token, value);
       }
-      break;
-    case RIGHT_BRACKET:
+    }else if(token === RIGHT_BRACKET){
       if (this.mode === ARRAY) {
         this.pop();
       } else {
         this.parseError(token, value);
       }
-      break;
-    default:
-      this.parseError(token, value); break;
+    }else{
+      this.parseError(token, value);
     }
-    break;
-  case KEY:
+  }else if(this.state === KEY){
     if (token === STRING) {
       this.key = value;
       this.state = COLON;
@@ -391,12 +383,10 @@ proto.onToken = function (token, value) {
     } else {
       this.parseError(token, value);
     }
-    break;
-  case COLON:
+  }else if(this.state === COLON){
     if (token === COLON) { this.state = VALUE; }
     else { this.parseError(token, value); }
-    break;
-  case COMMA:
+  }else if(this.state === COMMA){
     if (token === COMMA) { 
       if (this.mode === ARRAY) { this.key++; this.state = VALUE; }
       else if (this.mode === OBJECT) { this.state = KEY; }
@@ -406,8 +396,7 @@ proto.onToken = function (token, value) {
     } else {
       this.parseError(token, value);
     }
-    break;
-  default:
+  }else{
     this.parseError(token, value);
   }
 };
