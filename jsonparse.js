@@ -87,55 +87,49 @@ proto.write = function (buffer) {
   //console.dir(buffer.toString());
   var n;
   for (var i = 0, l = buffer.length; i < l; i++) {
-    switch (this.tState) {
-    case START:
+    if (this.tState === START){
       n = buffer[i];
-      switch (n) {
-      case 0x7b: this.onToken(LEFT_BRACE, "{"); break; // {
-      case 0x7d: this.onToken(RIGHT_BRACE, "}"); break; // }
-      case 0x5b: this.onToken(LEFT_BRACKET, "["); break; // [
-      case 0x5d: this.onToken(RIGHT_BRACKET, "]"); break; // ]
-      case 0x3a: this.onToken(COLON, ":"); break; // :
-      case 0x2c: this.onToken(COMMA, ","); break; // ,
-      case 0x74: this.tState = TRUE1; break; // t
-      case 0x66: this.tState = FALSE1; break; // f
-      case 0x6e: this.tState = NULL1; break; // n
-      case 0x22: this.string = ""; this.tState = STRING1; break; // "
-      case 0x2d: this.negative = true; this.tState = NUMBER1; break; // -
-      case 0x30: this.magnatude = 0; this.tState = NUMBER2; break; // 0
-      default:
+      if(n === 0x7b){ this.onToken(LEFT_BRACE, "{"); // {
+      }else if(n === 0x7d){ this.onToken(RIGHT_BRACE, "}"); // }
+      }else if(n === 0x5b){ this.onToken(LEFT_BRACKET, "["); // [
+      }else if(n === 0x5d){ this.onToken(RIGHT_BRACKET, "]"); // ]
+      }else if(n === 0x3a){ this.onToken(COLON, ":");  // :
+      }else if(n === 0x2c){ this.onToken(COMMA, ","); // ,
+      }else if(n === 0x74){ this.tState = TRUE1;  // t
+      }else if(n === 0x66){ this.tState = FALSE1;  // f
+      }else if(n === 0x6e){ this.tState = NULL1; // n
+      }else if(n === 0x22){ this.string = ""; this.tState = STRING1; // "
+      }else if(n === 0x2d){ this.negative = true; this.tState = NUMBER1; // -
+      }else if(n === 0x30){ this.magnatude = 0; this.tState = NUMBER2; // 0
+      }else{
         if (n > 0x30 && n < 0x40) { // 1-9
           this.magnatude = n - 0x30; this.tState = NUMBER3;
         } else if (n === 0x20 || n === 0x09 || n === 0x0a || n === 0x0d) {
           // whitespace
         } else { this.charError(buffer, i); }
-        break;
       }
-      break;
-    case STRING1: // After open quote
+    }else if (this.tState === STRING1){ // After open quote
       n = buffer[i];
       // TODO: Handle native utf8 characters, this code assumes ASCII input
       if (n === 0x22) { this.tState = START; this.onToken(STRING, this.string); this.string = undefined; }
       else if (n === 0x5c) { this.tState = STRING2; }
       else if (n >= 0x20) { this.string += String.fromCharCode(n); }
       else { this.charError(buffer, i); }
-      break;
-    case STRING2: // After backslash
+    }else if (this.tState === STRING2){ // After backslash
       n = buffer[i];
-      switch (n) {
-      case 0x22: this.string += "\""; this.tState = STRING1; break;
-      case 0x5c: this.string += "\\"; this.tState = STRING1; break;
-      case 0x2f: this.string += "\/"; this.tState = STRING1; break;
-      case 0x62: this.string += "\b"; this.tState = STRING1; break;
-      case 0x66: this.string += "\f"; this.tState = STRING1; break;
-      case 0x6e: this.string += "\n"; this.tState = STRING1; break;
-      case 0x72: this.string += "\r"; this.tState = STRING1; break;
-      case 0x74: this.string += "\t"; this.tState = STRING1; break;
-      case 0x75: this.unicode = ""; this.tState = STRING3; break;
-      default: this.charError(buffer, i); break;
+      if(n === 0x22){ this.string += "\""; this.tState = STRING1;
+      }else if(n === 0x5c){ this.string += "\\"; this.tState = STRING1; 
+      }else if(n === 0x2f){ this.string += "\/"; this.tState = STRING1; 
+      }else if(n === 0x62){ this.string += "\b"; this.tState = STRING1; 
+      }else if(n === 0x66){ this.string += "\f"; this.tState = STRING1; 
+      }else if(n === 0x6e){ this.string += "\n"; this.tState = STRING1; 
+      }else if(n === 0x72){ this.string += "\r"; this.tState = STRING1; 
+      }else if(n === 0x74){ this.string += "\t"; this.tState = STRING1; 
+      }else if(n === 0x75){ this.unicode = ""; this.tState = STRING3;
+      }else{ 
+        this.charError(buffer, i); 
       }
-      break;
-    case STRING3: case STRING4: case STRING5: case STRING6: // unicode hex codes
+    }else if (this.tState === STRING3 || this.tState === STRING4 || this.tState === STRING5 || this.tState === STRING6){ // unicode hex codes
       n = buffer[i];
       // 0-9 A-F a-f
       if ((n >= 0x30 && n < 0x40) || (n > 0x40 && n <= 0x46) || (n > 0x60 && n <= 0x66)) {
@@ -148,36 +142,31 @@ proto.write = function (buffer) {
       } else {
         this.charError(buffer, i);
       }
-      break;
-    case NUMBER1: // after minus
+    }else if (this.tState === NUMBER1){ // after minus
       n = buffer[i];
       if (n === 0x30) { this.magnatude = 0; this.tState = NUMBER2; }
       else if (n > 0x30 && n < 0x40) { this.magnatude = n - 0x30; this.tState = NUMBER3; }
       else { this.charError(buffer, i); }
-      break;
-    case NUMBER2: // * After initial zero
-      switch (buffer[i]) {
-      case 0x2e: // .
-        this.position = 0.1; this.tState = NUMBER4; break;
-      case 0x65: case 0x45: // e/E
-        this.exponent = 0; this.tState = NUMBER6; break;
-      default:
+    }else if (this.tState === NUMBER2){ // * After initial zero
+      n = buffer[i];
+      if(n === 0x2e){ // .
+        this.position = 0.1; this.tState = NUMBER4;
+      }else if(n === 0x65 ||  n === 0x45){ // e/E
+        this.exponent = 0; this.tState = NUMBER6;
+      }else{
         this.tState = START;
         this.onToken(NUMBER, 0);
         this.magnatude = undefined;
         this.negative = undefined;
         i--;
-        break;
       }
-      break;
-    case NUMBER3: // * After digit (before period)
+    }else if (this.tState === NUMBER3){ // * After digit (before period)
       n = buffer[i];
-      switch (n) {
-      case 0x2e: // .
-        this.position = 0.1; this.tState = NUMBER4; break;
-      case 0x65: case 0x45: // e/E
-        this.exponent = 0; this.tState = NUMBER6; break;
-      default: 
+      if(n === 0x2e){ // .
+        this.position = 0.1; this.tState = NUMBER4;
+      }else if(n === 0x65 || n === 0x45){ // e/E
+        this.exponent = 0; this.tState = NUMBER6;
+      }else{
         if (n >= 0x30 && n < 0x40) { this.magnatude = this.magnatude * 10 + n - 0x30; }
         else {
           this.tState = START; 
@@ -189,18 +178,15 @@ proto.write = function (buffer) {
           this.magnatude = undefined;
           i--;
         }
-        break;
       }
-      break;
-    case NUMBER4: // After period
+    }else if (this.tState === NUMBER4){ // After period
       n = buffer[i];
       if (n >= 0x30 && n < 0x40) { // 0-9
         this.magnatude += this.position * (n - 0x30);
         this.position /= 10;
         this.tState = NUMBER5; 
       } else { this.charError(buffer, i); }
-      break;
-    case NUMBER5: // * After digit (after period)
+    }else if (this.tState === NUMBER5){ // * After digit (after period)
       n = buffer[i];
       if (n >= 0x30 && n < 0x40) { // 0-9
         this.magnatude += this.position * (n - 0x30);
@@ -218,8 +204,7 @@ proto.write = function (buffer) {
         this.position = undefined;
         i--; 
       }
-      break;
-    case NUMBER6: // After E
+    }else if (this.tState === NUMBER6){ // After E
       n = buffer[i];
       if (n === 0x2b || n === 0x2d) { // +/-
         if (n === 0x2d) { this.negativeExponent = true; }
@@ -230,16 +215,14 @@ proto.write = function (buffer) {
         this.tState = NUMBER8;
       }
       else { this.charError(buffer, i); }  
-      break;
-    case NUMBER7: // After +/-
+    }else if (this.tState === NUMBER7){ // After +/-
       n = buffer[i];
       if (n >= 0x30 && n < 0x40) { // 0-9
         this.exponent = this.exponent * 10 + (n - 0x30);
         this.tState = NUMBER8;
       }
       else { this.charError(buffer, i); }  
-      break;
-    case NUMBER8: // * After digit (after +/-)
+    }else if (this.tState === NUMBER8){ // * After digit (after +/-)
       n = buffer[i];
       if (n >= 0x30 && n < 0x40) { // 0-9
         this.exponent = this.exponent * 10 + (n - 0x30);
@@ -259,48 +242,37 @@ proto.write = function (buffer) {
         this.onToken(NUMBER, this.magnatude);
         this.magnatude = undefined;
         i--; 
-      }  
-      break;
-    case TRUE1: // r
+      } 
+    }else if (this.tState === TRUE1){ // r
       if (buffer[i] === 0x72) { this.tState = TRUE2; }
       else { this.charError(buffer, i); }
-      break;
-    case TRUE2: // u
+    }else if (this.tState === TRUE2){ // u
       if (buffer[i] === 0x75) { this.tState = TRUE3; }
       else { this.charError(buffer, i); }
-      break;
-    case TRUE3: // e
+    }else if (this.tState === TRUE3){ // e
       if (buffer[i] === 0x65) { this.tState = START; this.onToken(TRUE, true); }
       else { this.charError(buffer, i); }
-      break;
-    case FALSE1: // a
+    }else if (this.tState === FALSE1){ // a
       if (buffer[i] === 0x61) { this.tState = FALSE2; }
       else { this.charError(buffer, i); }
-      break;
-    case FALSE2: // l
+    }else if (this.tState === FALSE2){ // l
       if (buffer[i] === 0x6c) { this.tState = FALSE3; }
       else { this.charError(buffer, i); }
-      break;
-    case FALSE3: // s
+    }else if (this.tState === FALSE3){ // s
       if (buffer[i] === 0x73) { this.tState = FALSE4; }
       else { this.charError(buffer, i); }
-      break;
-    case FALSE4: // e
+    }else if (this.tState === FALSE4){ // e
       if (buffer[i] === 0x65) { this.tState = START; this.onToken(FALSE, false); }
       else { this.charError(buffer, i); }
-      break;
-    case NULL1: // u
+    }else if (this.tState === NULL1){ // u
       if (buffer[i] === 0x75) { this.tState = NULL2; }
       else { this.charError(buffer, i); }
-      break;
-    case NULL2: // l
+    }else if (this.tState === NULL2){ // l
       if (buffer[i] === 0x6c) { this.tState = NULL3; }
       else { this.charError(buffer, i); }
-      break;
-    case NULL3: // l
+    }else if (this.tState === NULL3){ // l
       if (buffer[i] === 0x6c) { this.tState = START; this.onToken(NULL, null); }
       else { this.charError(buffer, i); }
-      break;
     }
   }
 };
@@ -333,16 +305,13 @@ proto.onValue = function (value) {
 };  
 proto.onToken = function (token, value) {
   //console.log("OnToken: state=%s token=%s %s", toknam(this.state), toknam(token), value?JSON.stringify(value):"");
-  switch (this.state) {
-  case VALUE:
-    switch (token) {
-    case STRING: case NUMBER: case TRUE: case FALSE: case NULL:
+  if(this.state === VALUE){
+    if(token === STRING || token === NUMBER || token === TRUE || token === FALSE || token === NULL){
       if (this.value) {
         this.value[this.key] = value;
       }
-      this.emit(value);
-    break;  
-    case LEFT_BRACE:
+      this.emit(value);  
+    }else if(token === LEFT_BRACE){
       this.push();
       if (this.value) {
         this.value = this.value[this.key] = {};
@@ -352,8 +321,7 @@ proto.onToken = function (token, value) {
       this.key = undefined;
       this.state = KEY;
       this.mode = OBJECT;
-      break;
-    case LEFT_BRACKET:
+    }else if(token === LEFT_BRACKET){
       this.push();
       if (this.value) {
         this.value = this.value[this.key] = [];
@@ -363,26 +331,22 @@ proto.onToken = function (token, value) {
       this.key = 0;
       this.mode = ARRAY;
       this.state = VALUE;
-      break;
-    case RIGHT_BRACE:
+    }else if(token === RIGHT_BRACE){
       if (this.mode === OBJECT) {
         this.pop();
       } else {
         this.parseError(token, value);
       }
-      break;
-    case RIGHT_BRACKET:
+    }else if(token === RIGHT_BRACKET){
       if (this.mode === ARRAY) {
         this.pop();
       } else {
         this.parseError(token, value);
       }
-      break;
-    default:
-      this.parseError(token, value); break;
+    }else{
+      this.parseError(token, value);
     }
-    break;
-  case KEY:
+  }else if(this.state === KEY){
     if (token === STRING) {
       this.key = value;
       this.state = COLON;
@@ -391,12 +355,10 @@ proto.onToken = function (token, value) {
     } else {
       this.parseError(token, value);
     }
-    break;
-  case COLON:
+  }else if(this.state === COLON){
     if (token === COLON) { this.state = VALUE; }
     else { this.parseError(token, value); }
-    break;
-  case COMMA:
+  }else if(this.state === COMMA){
     if (token === COMMA) { 
       if (this.mode === ARRAY) { this.key++; this.state = VALUE; }
       else if (this.mode === OBJECT) { this.state = KEY; }
@@ -406,8 +368,7 @@ proto.onToken = function (token, value) {
     } else {
       this.parseError(token, value);
     }
-    break;
-  default:
+  }else{
     this.parseError(token, value);
   }
 };
