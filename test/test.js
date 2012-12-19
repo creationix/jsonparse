@@ -1,5 +1,5 @@
 /*global Buffer*/
-var Parser = require('./jsonparse');
+var Parser = require('../');
 var fs = require('fs');
 /*
 var t = new Tokenizer();
@@ -14,7 +14,7 @@ t.write(new Buffer("lse"));
 t.write(new Buffer(JSON.stringify({"Hello":"World"})));
 */
 // Make sure it's parsing correctly before any benchmarking is done
-var json = fs.readFileSync("samplejson/basic.json");
+var json = fs.readFileSync(__dirname + "/../samplejson/basic.json");
 var t = new Parser();
 var v;
 t.onValue = function (value) { v = value; };
