@@ -1,14 +1,12 @@
 var Parser = require('../');
-var fs = require('fs');
+var json = require('../samplejson/basic.json');
+var jsonString = JSON.stringify(json);
 
-var json = fs.readFileSync(__dirname + "/../samplejson/basic.json");
 var t = new Parser();
 var v;
 t.onValue = function (value) { v = value; };
-t.write(json);
-if (JSON.stringify(v) !== JSON.stringify(JSON.parse(json))) {
-  throw new Error("Invalid parse result:\n" + JSON.stringify(v));
-}
+t.write(jsonString);
+
 var p = new Parser();
 p.onValue = function (value) {
   var keys = this.stack.map(function (item) {
