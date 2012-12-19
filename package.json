@@ -8,6 +8,13 @@
     "type": "git",
     "url": "http://github.com/creationix/jsonparse.git"
   },
+  "devDependencies": {
+    "tape": "~0.1.1",
+    "tap": "~0.3.3"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
   "bugs": "http://github.com/creationix/jsonparse/issues",
   "engines": ["node >= 0.2.0"],
   "license": "MIT",
