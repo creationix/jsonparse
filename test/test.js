@@ -1,11 +1,8 @@
+var test = require('tape');
+
 var Parser = require('../');
 var json = require('../samplejson/basic.json');
 var jsonString = JSON.stringify(json);
-
-var t = new Parser();
-var v;
-t.onValue = function (value) { v = value; };
-t.write(jsonString);
 
 var p = new Parser();
 p.onValue = function (value) {
