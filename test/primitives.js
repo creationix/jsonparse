@@ -1,8 +1,5 @@
 var test = require('tape');
-
 var Parser = require('../');
-var json = require('../samplejson/basic.json');
-var jsonString = JSON.stringify(json);
 
 var expected = [
   [ [], '' ],
