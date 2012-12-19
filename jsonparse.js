@@ -110,8 +110,11 @@ proto.write = function (buffer) {
       }
     }else if (this.tState === STRING1){ // After open quote
       n = buffer[i];
-      // TODO: Handle native utf8 characters, this code assumes ASCII input
-      if (n === 0x22) { this.tState = START; this.onToken(STRING, this.string); this.string = undefined; }
+      if (n >= 128) {
+        for (var j = i; buffer[j] >= 128 && j < buffer.length; j++);
+        this.string += buffer.slice(i, j).toString();
+        i = j - 1;
+      } else if (n === 0x22) { this.tState = START; this.onToken(STRING, this.string); this.string = undefined; }
       else if (n === 0x5c) { this.tState = STRING2; }
       else if (n >= 0x20) { this.string += String.fromCharCode(n); }
       else { this.charError(buffer, i); }
