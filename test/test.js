@@ -6,16 +6,12 @@ var jsonString = JSON.stringify(json);
 
 var p = new Parser();
 p.onValue = function (value) {
-  var keys = this.stack.map(function (item) {
-    return '.' + item.key;
-  }, this);
-  keys.push('.' + this.key);
-  keys.shift();
-  var o = JSON.stringify(value) || "";
-  if (o.length > 80) {
-    o = o.substr(0, 77) + "...";
-  }
-  console.log("value%s = %s", keys.join(''), o);
+  var keys = this.stack
+    .slice(1)
+    .map(function (item) { return item.key })
+    .concat(this.key !== undefined ? this.key : [])
+  ;
+  console.dir([ keys, value ]);
 };
 
 p.write('"""Hello""This\\"is""\\r\\n\\f\\t\\\\\\/\\""');
