@@ -110,7 +110,7 @@ proto.write = function (buffer) {
       }
     }else if (this.tState === STRING1){ // After open quote
       n = buffer[i];
-      if (n >= 128) {
+      if (n >= 128 && buffer.slice) {
         for (var j = i; buffer[j] >= 128 && j < buffer.length; j++);
         this.string += buffer.slice(i, j).toString();
         i = j - 1;
