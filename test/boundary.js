@@ -45,7 +45,7 @@ test('4 byte utf8 character (unicode scalar U+2070E): 𠜎', function (t) {
   p.write('"');
 });
 
-test('3 byte utf8 \'Han\' character chunked inbetween boundary: 我', function (t) {
+test('3 byte utf8 \'Han\' character chunked inbetween 2nd and 3rd byte: 我', function (t) {
   t.plan(1);
 
   var p = new Parser();
@@ -61,8 +61,7 @@ test('3 byte utf8 \'Han\' character chunked inbetween boundary: 我', function (
   p.write('"');
 });
 
-// test 4 bytes mbcs chunked inbetween boundary
-test('4 byte utf8 character (unicode scalar U+2070E) chunked inbetween boundary: 𠜎', function (t) {
+test('4 byte utf8 character (unicode scalar U+2070E) chunked inbetween 2nd and 3rd byte: 𠜎', function (t) {
   t.plan(1);
 
   var p = new Parser();
@@ -78,7 +77,7 @@ test('4 byte utf8 character (unicode scalar U+2070E) chunked inbetween boundary:
   p.write('"');
 });
 
-test('1-4 byte utf8 character string randomly chunked inbetween boundary: Aж文𠜱B', function (t) {
+test('1-4 byte utf8 character string chunked inbetween random bytes: Aж文𠜱B', function (t) {
   t.plan(1);
 
 var p = new Parser();
@@ -95,13 +94,13 @@ var p = new Parser();
   var rand_chunk = Math.floor(Math.random() * (eclectic_buffer.length));
   var first_buffer = eclectic_buffer.slice(0, rand_chunk);
   var second_buffer = eclectic_buffer.slice(rand_chunk);
-  /*
-  console.log('eclectic_buffer: ' + eclectic_buffer)
-  console.log('sliced from 0 to ' + rand_chunk);
-  console.log(first_buffer);
-  console.log('then sliced from ' + rand_chunk + ' to the end');
-  console.log(second_buffer);
-  */
+
+  //console.log('eclectic_buffer: ' + eclectic_buffer)
+  //console.log('sliced from 0 to ' + rand_chunk);
+  //console.log(first_buffer);
+  //console.log('then sliced from ' + rand_chunk + ' to the end');
+  //console.log(second_buffer);
+
   console.log('chunked after offset ' + rand_chunk);
   p.write('"');
   p.write(first_buffer);
