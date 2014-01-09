@@ -70,6 +70,7 @@ function Parser() {
   this.position = undefined;
   this.exponent = undefined;
   this.negativeExponent = undefined;
+  this.numberLength = 0;
   
   this.key = undefined;
   this.mode = undefined;
@@ -78,6 +79,9 @@ function Parser() {
   this.bytes_remaining = 0; // number of bytes remaining in multi byte utf8 char to read after split boundary
   this.bytes_in_sequence = 0; // bytes in multi byte utf8 char to read
   this.temp_buffs = { "2": new Buffer(2), "3": new Buffer(3), "4": new Buffer(4) }; // for rebuilding chars split before boundary is reached
+
+  // Stream offset
+  this.offset = -1;
 }
 var proto = Parser.prototype;
 proto.charError = function (buffer, i) {
@@ -92,6 +96,7 @@ proto.write = function (buffer) {
   for (var i = 0, l = buffer.length; i < l; i++) {
     if (this.tState === START){
       n = buffer[i];
+      this.offset++;
       if(n === 0x7b){ this.onToken(LEFT_BRACE, "{"); // {
       }else if(n === 0x7d){ this.onToken(RIGHT_BRACE, "}"); // }
       }else if(n === 0x5b){ this.onToken(LEFT_BRACKET, "["); // [
@@ -136,7 +141,7 @@ proto.write = function (buffer) {
           this.string += buffer.slice(i, (i + this.bytes_in_sequence)).toString();
           i = i + this.bytes_in_sequence - 1;
         }
-      } else if (n === 0x22) { this.tState = START; this.onToken(STRING, this.string); this.string = undefined; }
+      } else if (n === 0x22) { this.tState = START; this.onToken(STRING, this.string); this.offset += Buffer.byteLength(this.string, 'utf8') + 1; this.string = undefined; }
       else if (n === 0x5c) { this.tState = STRING2; }
       else if (n >= 0x20) { this.string += String.fromCharCode(n); }
       else { this.charError(buffer, i); }
@@ -169,11 +174,13 @@ proto.write = function (buffer) {
       }
     }else if (this.tState === NUMBER1){ // after minus
       n = buffer[i];
+      this.numberLength++;
       if (n === 0x30) { this.magnatude = 0; this.tState = NUMBER2; }
       else if (n > 0x30 && n < 0x40) { this.magnatude = n - 0x30; this.tState = NUMBER3; }
       else { this.charError(buffer, i); }
     }else if (this.tState === NUMBER2){ // * After initial zero
       n = buffer[i];
+      this.numberLength++;
       if(n === 0x2e){ // .
         this.position = 0.1; this.tState = NUMBER4;
       }else if(n === 0x65 ||  n === 0x45){ // e/E
@@ -181,12 +188,15 @@ proto.write = function (buffer) {
       }else{
         this.tState = START;
         this.onToken(NUMBER, 0);
+        this.offset += this.numberLength - 1;
+        this.numberLength = 0;
         this.magnatude = undefined;
         this.negative = undefined;
         i--;
       }
     }else if (this.tState === NUMBER3){ // * After digit (before period)
       n = buffer[i];
+      this.numberLength++;
       if(n === 0x2e){ // .
         this.position = 0.1; this.tState = NUMBER4;
       }else if(n === 0x65 || n === 0x45){ // e/E
@@ -200,12 +210,15 @@ proto.write = function (buffer) {
             this.negative = undefined;
           }
           this.onToken(NUMBER, this.magnatude); 
+          this.offset += this.numberLength - 1;
+          this.numberLength = 0;
           this.magnatude = undefined;
           i--;
         }
       }
     }else if (this.tState === NUMBER4){ // After period
       n = buffer[i];
+      this.numberLength++;
       if (n >= 0x30 && n < 0x40) { // 0-9
         this.magnatude += this.position * (n - 0x30);
         this.position /= 10;
@@ -213,6 +226,7 @@ proto.write = function (buffer) {
       } else { this.charError(buffer, i); }
     }else if (this.tState === NUMBER5){ // * After digit (after period)
       n = buffer[i];
+      this.numberLength++;
       if (n >= 0x30 && n < 0x40) { // 0-9
         this.magnatude += this.position * (n - 0x30);
         this.position /= 10;
@@ -225,12 +239,15 @@ proto.write = function (buffer) {
           this.negative = undefined;
         }
         this.onToken(NUMBER, this.negative ? -this.magnatude : this.magnatude); 
+        this.offset += this.numberLength - 1;
+        this.numberLength = 0;
         this.magnatude = undefined;
         this.position = undefined;
         i--; 
       }
     }else if (this.tState === NUMBER6){ // After E
       n = buffer[i];
+      this.numberLength++;
       if (n === 0x2b || n === 0x2d) { // +/-
         if (n === 0x2d) { this.negativeExponent = true; }
         this.tState = NUMBER7;
@@ -242,6 +259,7 @@ proto.write = function (buffer) {
       else { this.charError(buffer, i); }  
     }else if (this.tState === NUMBER7){ // After +/-
       n = buffer[i];
+      this.numberLength++;
       if (n >= 0x30 && n < 0x40) { // 0-9
         this.exponent = this.exponent * 10 + (n - 0x30);
         this.tState = NUMBER8;
@@ -249,6 +267,7 @@ proto.write = function (buffer) {
       else { this.charError(buffer, i); }  
     }else if (this.tState === NUMBER8){ // * After digit (after +/-)
       n = buffer[i];
+      this.numberLength++;
       if (n >= 0x30 && n < 0x40) { // 0-9
         this.exponent = this.exponent * 10 + (n - 0x30);
       }
@@ -265,6 +284,8 @@ proto.write = function (buffer) {
         }
         this.tState = START;
         this.onToken(NUMBER, this.magnatude);
+        this.offset += this.numberLength - 1;
+        this.numberLength = 0;
         this.magnatude = undefined;
         i--; 
       } 
@@ -275,7 +296,7 @@ proto.write = function (buffer) {
       if (buffer[i] === 0x75) { this.tState = TRUE3; }
       else { this.charError(buffer, i); }
     }else if (this.tState === TRUE3){ // e
-      if (buffer[i] === 0x65) { this.tState = START; this.onToken(TRUE, true); }
+      if (buffer[i] === 0x65) { this.tState = START; this.onToken(TRUE, true); this.offset+= 3; }
       else { this.charError(buffer, i); }
     }else if (this.tState === FALSE1){ // a
       if (buffer[i] === 0x61) { this.tState = FALSE2; }
@@ -287,7 +308,7 @@ proto.write = function (buffer) {
       if (buffer[i] === 0x73) { this.tState = FALSE4; }
       else { this.charError(buffer, i); }
     }else if (this.tState === FALSE4){ // e
-      if (buffer[i] === 0x65) { this.tState = START; this.onToken(FALSE, false); }
+      if (buffer[i] === 0x65) { this.tState = START; this.onToken(FALSE, false); this.offset+= 4; }
       else { this.charError(buffer, i); }
     }else if (this.tState === NULL1){ // u
       if (buffer[i] === 0x75) { this.tState = NULL2; }
@@ -296,7 +317,7 @@ proto.write = function (buffer) {
       if (buffer[i] === 0x6c) { this.tState = NULL3; }
       else { this.charError(buffer, i); }
     }else if (this.tState === NULL3){ // l
-      if (buffer[i] === 0x6c) { this.tState = START; this.onToken(NULL, null); }
+      if (buffer[i] === 0x6c) { this.tState = START; this.onToken(NULL, null); this.offset += 3; }
       else { this.charError(buffer, i); }
     }
   }
@@ -397,5 +418,7 @@ proto.onToken = function (token, value) {
     this.parseError(token, value);
   }
 };
+
+Parser.C = C;
 
 module.exports = Parser;
