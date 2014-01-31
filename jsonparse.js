@@ -63,6 +63,7 @@ function Parser() {
 
   this.string = undefined; // string data
   this.unicode = undefined; // unicode escapes
+  this.stringLength = 0;
 
   // For number parsing
   this.negative = undefined;
@@ -106,7 +107,7 @@ proto.write = function (buffer) {
       }else if(n === 0x74){ this.tState = TRUE1;  // t
       }else if(n === 0x66){ this.tState = FALSE1;  // f
       }else if(n === 0x6e){ this.tState = NULL1; // n
-      }else if(n === 0x22){ this.string = ""; this.tState = STRING1; // "
+      }else if(n === 0x22){ this.string = ""; this.tState = STRING1; this.stringLength = 0; // "
       }else if(n === 0x2d){ this.negative = true; this.tState = NUMBER1; // -
       }else if(n === 0x30){ this.magnatude = 0; this.tState = NUMBER2; // 0
       }else{
@@ -117,6 +118,7 @@ proto.write = function (buffer) {
         } else { this.charError(buffer, i); }
       }
     }else if (this.tState === STRING1){ // After open quote
+      this.stringLength++;
       n = buffer[i]; // get current byte from buffer
       // check for carry over of a multi byte char split between data chunks
       // & fill temp buffer it with start of this data chunk up to the boundary limit set in the last iteration
@@ -127,6 +129,7 @@ proto.write = function (buffer) {
         this.string += this.temp_buffs[this.bytes_in_sequence].toString();
         this.bytes_in_sequence = this.bytes_remaining = 0;
         i = i + j - 1;
+        this.stringLength += j - 1;
       } else if (this.bytes_remaining === 0 && n >= 128) { // else if no remainder bytes carried over, parse multi byte (>=128) chars one at a time
         if ((n >= 194) && (n <= 223)) this.bytes_in_sequence = 2;
         if ((n >= 224) && (n <= 239)) this.bytes_in_sequence = 3;
@@ -140,12 +143,14 @@ proto.write = function (buffer) {
         } else {
           this.string += buffer.slice(i, (i + this.bytes_in_sequence)).toString();
           i = i + this.bytes_in_sequence - 1;
+          this.stringLength += this.bytes_in_sequence - 1;
         }
-      } else if (n === 0x22) { this.tState = START; this.onToken(STRING, this.string); this.offset += Buffer.byteLength(this.string, 'utf8') + 1; this.string = undefined; }
+      } else if (n === 0x22) { this.tState = START; this.onToken(STRING, this.string); this.offset += this.stringLength; this.string = undefined; }
       else if (n === 0x5c) { this.tState = STRING2; }
       else if (n >= 0x20) { this.string += String.fromCharCode(n); }
       else { this.charError(buffer, i); }
     }else if (this.tState === STRING2){ // After backslash
+      this.stringLength++;
       n = buffer[i];
       if(n === 0x22){ this.string += "\""; this.tState = STRING1;
       }else if(n === 0x5c){ this.string += "\\"; this.tState = STRING1; 
@@ -160,11 +165,13 @@ proto.write = function (buffer) {
         this.charError(buffer, i); 
       }
     }else if (this.tState === STRING3 || this.tState === STRING4 || this.tState === STRING5 || this.tState === STRING6){ // unicode hex codes
+      this.stringLength++;
       n = buffer[i];
       // 0-9 A-F a-f
       if ((n >= 0x30 && n < 0x40) || (n > 0x40 && n <= 0x46) || (n > 0x60 && n <= 0x66)) {
         this.unicode += String.fromCharCode(n);
         if (this.tState++ === STRING6) {
+          this.stringLength++;
           this.string += String.fromCharCode(parseInt(this.unicode, 16));
           this.unicode = undefined;
           this.tState = STRING1; 
