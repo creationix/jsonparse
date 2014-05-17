@@ -144,6 +144,7 @@ proto.write = function (buffer) {
       } else if (n === 0x22) { this.tState = START; this.onToken(STRING, this.string); this.offset += Buffer.byteLength(this.string, 'utf8') + 1; this.string = undefined; }
       else if (n === 0x5c) { this.tState = STRING2; }
       else if (n >= 0x20) { this.string += String.fromCharCode(n); }
+      else if (n === 0x0000) { /* ignore null character */ }
       else { this.charError(buffer, i); }
     }else if (this.tState === STRING2){ // After backslash
       n = buffer[i];
