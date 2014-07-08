@@ -329,7 +329,6 @@ proto.onToken = function (token, value) {
 proto.parseError = function (token, value) {
   this.onError(new Error("Unexpected " + toknam(token) + (value ? ("(" + JSON.stringify(value) + ")") : "") + " in state " + toknam(this.state)));
 };
-proto.onError = function (err) { throw err; };
 proto.push = function () {
   this.stack.push({value: this.value, key: this.key, mode: this.mode});
 };
