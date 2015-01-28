@@ -128,6 +128,10 @@ proto.write = function (buffer) {
         this.bytes_in_sequence = this.bytes_remaining = 0;
         i = i + j - 1;
       } else if (this.bytes_remaining === 0 && n >= 128) { // else if no remainder bytes carried over, parse multi byte (>=128) chars one at a time
+        if (n <= 193) {
+          this.onError(new Error("Invalid UTF-8 character at position " + i + " in state " + toknam(this.tState)));
+          return
+        }
         if ((n >= 194) && (n <= 223)) this.bytes_in_sequence = 2;
         if ((n >= 224) && (n <= 239)) this.bytes_in_sequence = 3;
         if ((n >= 240) && (n <= 244)) this.bytes_in_sequence = 4;
