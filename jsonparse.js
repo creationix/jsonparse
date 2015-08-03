@@ -46,17 +46,6 @@ var KEY     = C.KEY     = 0x72;
 var OBJECT  = C.OBJECT  = 0x81;
 var ARRAY   = C.ARRAY   = 0x82;
 
-// Slow code to string converter (only used when throwing syntax errors)
-function toknam(code) {
-  var keys = Object.keys(C);
-  for (var i = 0, l = keys.length; i < l; i++) {
-    var key = keys[i];
-    if (C[key] === code) { return key; }
-  }
-  return code && ("0x" + code.toString(16));
-}
-
-
 function Parser() {
   this.tState = START;
   this.value = undefined;
@@ -84,8 +73,17 @@ function Parser() {
   this.offset = -1;
 }
 var proto = Parser.prototype;
+// Slow code to string converter (only used when throwing syntax errors)
+Parser._toknam = function(code) {
+  var keys = Object.keys(C);
+  for (var i = 0, l = keys.length; i < l; i++) {
+    var key = keys[i];
+    if (C[key] === code) { return key; }
+  }
+  return code && ("0x" + code.toString(16));
+}
 proto.charError = function (buffer, i) {
-  proto.onError(new Error("Unexpected " + JSON.stringify(String.fromCharCode(buffer[i])) + " at position " + i + " in state " + toknam(this.tState)));
+  proto.onError(new Error("Unexpected " + JSON.stringify(String.fromCharCode(buffer[i])) + " at position " + i + " in state " + Parser._toknam(this.tState)));
 };
 proto.onError = function (err) { throw err; };
 proto.write = function (buffer) {
@@ -129,7 +127,7 @@ proto.write = function (buffer) {
         i = i + j - 1;
       } else if (this.bytes_remaining === 0 && n >= 128) { // else if no remainder bytes carried over, parse multi byte (>=128) chars one at a time
         if (n <= 193) {
-          this.onError(new Error("Invalid UTF-8 character at position " + i + " in state " + toknam(this.tState)));
+          this.onError(new Error("Invalid UTF-8 character at position " + i + " in state " + _toknam(this.tState)));
           return
         }
         if ((n >= 194) && (n <= 223)) this.bytes_in_sequence = 2;
@@ -331,7 +329,7 @@ proto.onToken = function (token, value) {
 };
 
 proto.parseError = function (token, value) {
-  this.onError(new Error("Unexpected " + toknam(token) + (value ? ("(" + JSON.stringify(value) + ")") : "") + " in state " + toknam(this.state)));
+  this.onError(new Error("Unexpected " + _toknam(token) + (value ? ("(" + JSON.stringify(value) + ")") : "") + " in state " + _toknam(this.state)));
 };
 proto.push = function () {
   this.stack.push({value: this.value, key: this.key, mode: this.mode});
