@@ -85,7 +85,7 @@ function Parser() {
 }
 var proto = Parser.prototype;
 proto.charError = function (buffer, i) {
-  this.onError(new Error("Unexpected " + JSON.stringify(String.fromCharCode(buffer[i])) + " at position " + i + " in state " + toknam(this.tState)));
+  proto.onError(new Error("Unexpected " + JSON.stringify(String.fromCharCode(buffer[i])) + " at position " + i + " in state " + toknam(this.tState)));
 };
 proto.onError = function (err) { throw err; };
 proto.write = function (buffer) {
