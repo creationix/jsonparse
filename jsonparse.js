@@ -130,8 +130,7 @@ proto.write = function (buffer) {
         i = i + j - 1;
       } else if (this.bytes_remaining === 0 && n >= 128) { // else if no remainder bytes carried over, parse multi byte (>=128) chars one at a time
         if (n <= 193) {
-          this.onError(new Error("Invalid UTF-8 character at position " + i + " in state " + Parser.toknam(this.tState)));
-          return
+          return this.onError(new Error("Invalid UTF-8 character at position " + i + " in state " + Parser.toknam(this.tState)));
         }
         if ((n >= 194) && (n <= 223)) this.bytes_in_sequence = 2;
         if ((n >= 224) && (n <= 239)) this.bytes_in_sequence = 3;
@@ -385,16 +384,16 @@ proto.onToken = function (token, value) {
       if (this.mode === OBJECT) {
         this.pop();
       } else {
-        this.parseError(token, value);
+        return this.parseError(token, value);
       }
     }else if(token === RIGHT_BRACKET){
       if (this.mode === ARRAY) {
         this.pop();
       } else {
-        this.parseError(token, value);
+        return this.parseError(token, value);
       }
     }else{
-      this.parseError(token, value);
+      return this.parseError(token, value);
     }
   }else if(this.state === KEY){
     if (token === STRING) {
@@ -403,11 +402,11 @@ proto.onToken = function (token, value) {
     } else if (token === RIGHT_BRACE) {
       this.pop();
     } else {
-      this.parseError(token, value);
+      return this.parseError(token, value);
     }
   }else if(this.state === COLON){
     if (token === COLON) { this.state = VALUE; }
-    else { this.parseError(token, value); }
+    else { return this.parseError(token, value); }
   }else if(this.state === COMMA){
     if (token === COMMA) { 
       if (this.mode === ARRAY) { this.key++; this.state = VALUE; }
@@ -416,10 +415,10 @@ proto.onToken = function (token, value) {
     } else if (token === RIGHT_BRACKET && this.mode === ARRAY || token === RIGHT_BRACE && this.mode === OBJECT) {
       this.pop();
     } else {
-      this.parseError(token, value);
+      return this.parseError(token, value);
     }
   }else{
-    this.parseError(token, value);
+    return this.parseError(token, value);
   }
 };
 
