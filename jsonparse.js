@@ -15,6 +15,7 @@ var STRING        = C.STRING        = 0xa;
 var NUMBER        = C.NUMBER        = 0xb;
 // Tokenizer States
 var START   = C.START   = 0x11;
+var STOP    = C.STOP    = 0x12;
 var TRUE1   = C.TRUE1   = 0x21;
 var TRUE2   = C.TRUE2   = 0x22;
 var TRUE3   = C.TRUE3   = 0x23;
@@ -87,6 +88,7 @@ Parser.toknam = function (code) {
 var proto = Parser.prototype;
 proto.onError = function (err) { throw err; };
 proto.charError = function (buffer, i) {
+  this.tState = STOP;
   this.onError(new Error("Unexpected " + JSON.stringify(String.fromCharCode(buffer[i])) + " at position " + i + " in state " + Parser.toknam(this.tState)));
 };
 proto.write = function (buffer) {
@@ -341,6 +343,7 @@ proto.onToken = function (token, value) {
 };
 
 proto.parseError = function (token, value) {
+  this.tState = STOP;
   this.onError(new Error("Unexpected " + Parser.toknam(token) + (value ? ("(" + JSON.stringify(value) + ")") : "") + " in state " + Parser.toknam(this.state)));
 };
 proto.push = function () {
@@ -363,7 +366,6 @@ proto.onValue = function (value) {
   // Override me
 };  
 proto.onToken = function (token, value) {
-  //console.log("OnToken: state=%s token=%s %s", toknam(this.state), toknam(token), value?JSON.stringify(value):"");
   if(this.state === VALUE){
     if(token === STRING || token === NUMBER || token === TRUE || token === FALSE || token === NULL){
       if (this.value) {
