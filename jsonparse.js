@@ -15,6 +15,7 @@ var STRING        = C.STRING        = 0xa;
 var NUMBER        = C.NUMBER        = 0xb;
 // Tokenizer States
 var START   = C.START   = 0x11;
+var STOP    = C.STOP    = 0x12;
 var TRUE1   = C.TRUE1   = 0x21;
 var TRUE2   = C.TRUE2   = 0x22;
 var TRUE3   = C.TRUE3   = 0x23;
@@ -46,16 +47,6 @@ var KEY     = C.KEY     = 0x72;
 var OBJECT  = C.OBJECT  = 0x81;
 var ARRAY   = C.ARRAY   = 0x82;
 
-// Slow code to string converter (only used when throwing syntax errors)
-function toknam(code) {
-  var keys = Object.keys(C);
-  for (var i = 0, l = keys.length; i < l; i++) {
-    var key = keys[i];
-    if (C[key] === code) { return key; }
-  }
-  return code && ("0x" + code.toString(16));
-}
-
 
 function Parser() {
   this.tState = START;
@@ -83,15 +74,25 @@ function Parser() {
   // Stream offset
   this.offset = -1;
 }
+
+// Slow code to string converter (only used when throwing syntax errors)
+Parser.toknam = function (code) {
+  var keys = Object.keys(C);
+  for (var i = 0, l = keys.length; i < l; i++) {
+    var key = keys[i];
+    if (C[key] === code) { return key; }
+  }
+  return code && ("0x" + code.toString(16));
+}
+
 var proto = Parser.prototype;
-proto.charError = function (buffer, i) {
-  this.onError(new Error("Unexpected " + JSON.stringify(String.fromCharCode(buffer[i])) + " at position " + i + " in state " + toknam(this.tState)));
-};
 proto.onError = function (err) { throw err; };
+proto.charError = function (buffer, i) {
+  this.tState = STOP;
+  this.onError(new Error("Unexpected " + JSON.stringify(String.fromCharCode(buffer[i])) + " at position " + i + " in state " + Parser.toknam(this.tState)));
+};
 proto.write = function (buffer) {
   if (typeof buffer === "string") buffer = new Buffer(buffer);
-  //process.stdout.write("Input: ");
-  //console.dir(buffer.toString());
   var n;
   for (var i = 0, l = buffer.length; i < l; i++) {
     if (this.tState === START){
@@ -114,7 +115,9 @@ proto.write = function (buffer) {
           this.magnatude = n - 0x30; this.tState = NUMBER3;
         } else if (n === 0x20 || n === 0x09 || n === 0x0a || n === 0x0d) {
           // whitespace
-        } else { this.charError(buffer, i); }
+        } else {
+            return this.charError(buffer, i);
+        }
       }
     }else if (this.tState === STRING1){ // After open quote
       n = buffer[i]; // get current byte from buffer
@@ -129,8 +132,7 @@ proto.write = function (buffer) {
         i = i + j - 1;
       } else if (this.bytes_remaining === 0 && n >= 128) { // else if no remainder bytes carried over, parse multi byte (>=128) chars one at a time
         if (n <= 193) {
-          this.onError(new Error("Invalid UTF-8 character at position " + i + " in state " + toknam(this.tState)));
-          return
+          return this.onError(new Error("Invalid UTF-8 character at position " + i + " in state " + Parser.toknam(this.tState)));
         }
         if ((n >= 194) && (n <= 223)) this.bytes_in_sequence = 2;
         if ((n >= 224) && (n <= 239)) this.bytes_in_sequence = 3;
@@ -148,7 +150,9 @@ proto.write = function (buffer) {
       } else if (n === 0x22) { this.tState = START; this.onToken(STRING, this.string); this.offset += Buffer.byteLength(this.string, 'utf8') + 1; this.string = undefined; }
       else if (n === 0x5c) { this.tState = STRING2; }
       else if (n >= 0x20) { this.string += String.fromCharCode(n); }
-      else { this.charError(buffer, i); }
+      else {
+          return this.charError(buffer, i);
+      }
     }else if (this.tState === STRING2){ // After backslash
       n = buffer[i];
       if(n === 0x22){ this.string += "\""; this.tState = STRING1;
@@ -161,7 +165,7 @@ proto.write = function (buffer) {
       }else if(n === 0x74){ this.string += "\t"; this.tState = STRING1; 
       }else if(n === 0x75){ this.unicode = ""; this.tState = STRING3;
       }else{ 
-        this.charError(buffer, i); 
+        return this.charError(buffer, i); 
       }
     }else if (this.tState === STRING3 || this.tState === STRING4 || this.tState === STRING5 || this.tState === STRING6){ // unicode hex codes
       n = buffer[i];
@@ -174,14 +178,16 @@ proto.write = function (buffer) {
           this.tState = STRING1; 
         }
       } else {
-        this.charError(buffer, i);
+        return this.charError(buffer, i);
       }
     }else if (this.tState === NUMBER1){ // after minus
       n = buffer[i];
       this.numberLength++;
       if (n === 0x30) { this.magnatude = 0; this.tState = NUMBER2; }
       else if (n > 0x30 && n < 0x40) { this.magnatude = n - 0x30; this.tState = NUMBER3; }
-      else { this.charError(buffer, i); }
+      else {
+          return this.charError(buffer, i);
+      }
     }else if (this.tState === NUMBER2){ // * After initial zero
       n = buffer[i];
       this.numberLength++;
@@ -227,7 +233,9 @@ proto.write = function (buffer) {
         this.magnatude += this.position * (n - 0x30);
         this.position /= 10;
         this.tState = NUMBER5; 
-      } else { this.charError(buffer, i); }
+      } else {
+          return this.charError(buffer, i);
+      }
     }else if (this.tState === NUMBER5){ // * After digit (after period)
       n = buffer[i];
       this.numberLength++;
@@ -260,7 +268,9 @@ proto.write = function (buffer) {
         this.exponent = this.exponent * 10 + (n - 0x30);
         this.tState = NUMBER8;
       }
-      else { this.charError(buffer, i); }  
+      else {
+          return this.charError(buffer, i);
+      }
     }else if (this.tState === NUMBER7){ // After +/-
       n = buffer[i];
       this.numberLength++;
@@ -268,7 +278,9 @@ proto.write = function (buffer) {
         this.exponent = this.exponent * 10 + (n - 0x30);
         this.tState = NUMBER8;
       }
-      else { this.charError(buffer, i); }  
+      else {
+          return this.charError(buffer, i);
+      }
     }else if (this.tState === NUMBER8){ // * After digit (after +/-)
       n = buffer[i];
       this.numberLength++;
@@ -295,34 +307,34 @@ proto.write = function (buffer) {
       } 
     }else if (this.tState === TRUE1){ // r
       if (buffer[i] === 0x72) { this.tState = TRUE2; }
-      else { this.charError(buffer, i); }
+      else { return this.charError(buffer, i); }
     }else if (this.tState === TRUE2){ // u
       if (buffer[i] === 0x75) { this.tState = TRUE3; }
-      else { this.charError(buffer, i); }
+      else { return this.charError(buffer, i); }
     }else if (this.tState === TRUE3){ // e
       if (buffer[i] === 0x65) { this.tState = START; this.onToken(TRUE, true); this.offset+= 3; }
-      else { this.charError(buffer, i); }
+      else { return this.charError(buffer, i); }
     }else if (this.tState === FALSE1){ // a
       if (buffer[i] === 0x61) { this.tState = FALSE2; }
-      else { this.charError(buffer, i); }
+      else { return this.charError(buffer, i); }
     }else if (this.tState === FALSE2){ // l
       if (buffer[i] === 0x6c) { this.tState = FALSE3; }
-      else { this.charError(buffer, i); }
+      else { return this.charError(buffer, i); }
     }else if (this.tState === FALSE3){ // s
       if (buffer[i] === 0x73) { this.tState = FALSE4; }
-      else { this.charError(buffer, i); }
+      else { return this.charError(buffer, i); }
     }else if (this.tState === FALSE4){ // e
       if (buffer[i] === 0x65) { this.tState = START; this.onToken(FALSE, false); this.offset+= 4; }
-      else { this.charError(buffer, i); }
+      else { return this.charError(buffer, i); }
     }else if (this.tState === NULL1){ // u
       if (buffer[i] === 0x75) { this.tState = NULL2; }
-      else { this.charError(buffer, i); }
+      else { return this.charError(buffer, i); }
     }else if (this.tState === NULL2){ // l
       if (buffer[i] === 0x6c) { this.tState = NULL3; }
-      else { this.charError(buffer, i); }
+      else { return this.charError(buffer, i); }
     }else if (this.tState === NULL3){ // l
       if (buffer[i] === 0x6c) { this.tState = START; this.onToken(NULL, null); this.offset += 3; }
-      else { this.charError(buffer, i); }
+      else { return this.charError(buffer, i); }
     }
   }
 };
@@ -331,7 +343,8 @@ proto.onToken = function (token, value) {
 };
 
 proto.parseError = function (token, value) {
-  this.onError(new Error("Unexpected " + toknam(token) + (value ? ("(" + JSON.stringify(value) + ")") : "") + " in state " + toknam(this.state)));
+  this.tState = STOP;
+  this.onError(new Error("Unexpected " + Parser.toknam(token) + (value ? ("(" + JSON.stringify(value) + ")") : "") + " in state " + Parser.toknam(this.state)));
 };
 proto.push = function () {
   this.stack.push({value: this.value, key: this.key, mode: this.mode});
@@ -353,7 +366,6 @@ proto.onValue = function (value) {
   // Override me
 };  
 proto.onToken = function (token, value) {
-  //console.log("OnToken: state=%s token=%s %s", toknam(this.state), toknam(token), value?JSON.stringify(value):"");
   if(this.state === VALUE){
     if(token === STRING || token === NUMBER || token === TRUE || token === FALSE || token === NULL){
       if (this.value) {
@@ -384,16 +396,16 @@ proto.onToken = function (token, value) {
       if (this.mode === OBJECT) {
         this.pop();
       } else {
-        this.parseError(token, value);
+        return this.parseError(token, value);
       }
     }else if(token === RIGHT_BRACKET){
       if (this.mode === ARRAY) {
         this.pop();
       } else {
-        this.parseError(token, value);
+        return this.parseError(token, value);
       }
     }else{
-      this.parseError(token, value);
+      return this.parseError(token, value);
     }
   }else if(this.state === KEY){
     if (token === STRING) {
@@ -402,11 +414,11 @@ proto.onToken = function (token, value) {
     } else if (token === RIGHT_BRACE) {
       this.pop();
     } else {
-      this.parseError(token, value);
+      return this.parseError(token, value);
     }
   }else if(this.state === COLON){
     if (token === COLON) { this.state = VALUE; }
-    else { this.parseError(token, value); }
+    else { return this.parseError(token, value); }
   }else if(this.state === COMMA){
     if (token === COMMA) { 
       if (this.mode === ARRAY) { this.key++; this.state = VALUE; }
@@ -415,10 +427,10 @@ proto.onToken = function (token, value) {
     } else if (token === RIGHT_BRACKET && this.mode === ARRAY || token === RIGHT_BRACE && this.mode === OBJECT) {
       this.pop();
     } else {
-      this.parseError(token, value);
+      return this.parseError(token, value);
     }
   }else{
-    this.parseError(token, value);
+    return this.parseError(token, value);
   }
 };
 
