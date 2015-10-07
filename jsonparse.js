@@ -27,13 +27,7 @@ var NULL1   = C.NULL1   = 0x41;
 var NULL2   = C.NULL2   = 0x42;
 var NULL3   = C.NULL3   = 0x43;
 var NUMBER1 = C.NUMBER1 = 0x51;
-var NUMBER2 = C.NUMBER2 = 0x52;
 var NUMBER3 = C.NUMBER3 = 0x53;
-var NUMBER4 = C.NUMBER4 = 0x54;
-var NUMBER5 = C.NUMBER5 = 0x55;
-var NUMBER6 = C.NUMBER6 = 0x56;
-var NUMBER7 = C.NUMBER7 = 0x57;
-var NUMBER8 = C.NUMBER8 = 0x58;
 var STRING1 = C.STRING1 = 0x61;
 var STRING2 = C.STRING2 = 0x62;
 var STRING3 = C.STRING3 = 0x63;
@@ -55,14 +49,6 @@ function Parser() {
   this.string = undefined; // string data
   this.unicode = undefined; // unicode escapes
 
-  // For number parsing
-  this.negative = undefined;
-  this.magnatude = undefined;
-  this.position = undefined;
-  this.exponent = undefined;
-  this.negativeExponent = undefined;
-  this.numberLength = 0;
-  
   this.key = undefined;
   this.mode = undefined;
   this.stack = [];
@@ -83,7 +69,7 @@ Parser.toknam = function (code) {
     if (C[key] === code) { return key; }
   }
   return code && ("0x" + code.toString(16));
-}
+};
 
 var proto = Parser.prototype;
 proto.onError = function (err) { throw err; };
@@ -208,6 +194,7 @@ proto.write = function (buffer) {
               this.charError(buffer, i);
             } else {
               this.onToken(NUMBER, result);
+              this.offset += this.string.length - 1;
               this.string = undefined;
               i--;
             }
