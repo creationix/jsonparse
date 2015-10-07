@@ -193,7 +193,15 @@ proto.write = function (buffer) {
             if (isNaN(result)) {
               return this.charError(buffer, i);
             } else {
-              this.onToken(NUMBER, result);
+              if (result.toString() == this.string) {
+                this.onToken(NUMBER, result);
+              } else if (result - parseFloat(result.toString()) <= 0) {
+                // If special handling of floating arithmetics is needed add it here. For now the comparison will be exact
+                this.onToken(NUMBER, result);
+              } else {
+                // overflow rounding error
+                this.onToken(NUMBER, this.string);
+              }
               this.offset += this.string.length - 1;
               this.string = undefined;
               i--;
