@@ -191,7 +191,7 @@ proto.write = function (buffer) {
             this.tState = START;
             var result = parseFloat(this.string);
             if (isNaN(result)) {
-              this.charError(buffer, i);
+              return this.charError(buffer, i);
             } else {
               this.onToken(NUMBER, result);
               this.offset += this.string.length - 1;
