@@ -199,8 +199,8 @@ proto.write = function (buffer) {
                 // If special handling of floating arithmetics is needed add it here. For now the comparison will be exact
                 this.onToken(NUMBER, result);
               } else {
-                // overflow rounding error
-                this.onToken(NUMBER, this.string);
+                // overflow rounding error passing it along as a string
+                this.onToken(STRING, this.string);
               }
               this.offset += this.string.length - 1;
               this.string = undefined;
