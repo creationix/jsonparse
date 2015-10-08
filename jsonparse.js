@@ -189,23 +189,22 @@ proto.write = function (buffer) {
             break;
           default:
             this.tState = START;
-            var result = parseFloat(this.string);
-            if (isNaN(result)) {
+            var result = Number(this.string);
+
+            if (isNaN(result)){
               return this.charError(buffer, i);
-            } else {
-              if (result.toString() == this.string) {
-                this.onToken(NUMBER, result);
-              } else if (result - parseFloat(result.toString()) <= 0) {
-                // If special handling of floating arithmetics is needed add it here. For now the comparison will be exact
-                this.onToken(NUMBER, result);
-              } else {
-                // overflow rounding error passing it along as a string
-                this.onToken(STRING, this.string);
-              }
-              this.offset += this.string.length - 1;
-              this.string = undefined;
-              i--;
             }
+
+            if ((this.string.match(/[0-9]+/) == this.string) && (result.toString() != this.string)) {
+              // Long string of digits which is an ID string and not valid and/or safe JavaScript integer Number
+              this.onToken(STRING, this.string);
+            } else {
+              this.onToken(NUMBER, result);
+            }
+
+            this.offset += this.string.length - 1;
+            this.string = undefined;
+            i--;
             break;
         }
     }else if (this.tState === TRUE1){ // r
