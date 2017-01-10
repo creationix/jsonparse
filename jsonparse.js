@@ -40,6 +40,14 @@ var KEY     = C.KEY     = 0x72;
 // Parser Modes
 var OBJECT  = C.OBJECT  = 0x81;
 var ARRAY   = C.ARRAY   = 0x82;
+// Character constants
+var BACK_SLASH =      "\\".charCodeAt(0);
+var FORWARD_SLASH =   "\/".charCodeAt(0);
+var BACKSPACE =       "\b".charCodeAt(0);
+var FORM_FEED =       "\f".charCodeAt(0);
+var NEWLINE =         "\n".charCodeAt(0);
+var CARRIAGE_RETURN = "\r".charCodeAt(0);
+var TAB =             "\t".charCodeAt(0);
 
 var STRING_BUFFER_SIZE = 64 * 1024;
 
@@ -184,13 +192,13 @@ proto.write = function (buffer) {
     }else if (this.tState === STRING2){ // After backslash
       n = buffer[i];
       if(n === 0x22){ this.appendStringChar(n); this.tState = STRING1;
-      }else if(n === 0x5c){ this.appendStringChar("\\".charCodeAt(0)); this.tState = STRING1;
-      }else if(n === 0x2f){ this.appendStringChar("\/".charCodeAt(0)); this.tState = STRING1;
-      }else if(n === 0x62){ this.appendStringChar("\b".charCodeAt(0)); this.tState = STRING1;
-      }else if(n === 0x66){ this.appendStringChar("\f".charCodeAt(0)); this.tState = STRING1;
-      }else if(n === 0x6e){ this.appendStringChar("\n".charCodeAt(0)); this.tState = STRING1;
-      }else if(n === 0x72){ this.appendStringChar("\r".charCodeAt(0)); this.tState = STRING1;
-      }else if(n === 0x74){ this.appendStringChar("\t".charCodeAt(0)); this.tState = STRING1;
+      }else if(n === 0x5c){ this.appendStringChar(BACK_SLASH); this.tState = STRING1;
+      }else if(n === 0x2f){ this.appendStringChar(FORWARD_SLASH); this.tState = STRING1;
+      }else if(n === 0x62){ this.appendStringChar(BACKSPACE); this.tState = STRING1;
+      }else if(n === 0x66){ this.appendStringChar(FORM_FEED); this.tState = STRING1;
+      }else if(n === 0x6e){ this.appendStringChar(NEWLINE); this.tState = STRING1;
+      }else if(n === 0x72){ this.appendStringChar(CARRIAGE_RETURN); this.tState = STRING1;
+      }else if(n === 0x74){ this.appendStringChar(TAB); this.tState = STRING1;
       }else if(n === 0x75){ this.unicode = ""; this.tState = STRING3;
       }else{
         return this.charError(buffer, i);

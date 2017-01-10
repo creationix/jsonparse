@@ -4,7 +4,7 @@ var test = require('tape');
 
 test('can handle large tokens without running out of memory', function (t) {
   var parser = new JsonParse();
-  var chunkSize = 1024
+  var chunkSize = 1024;
   var chunks = 1024 * 200; // 200mb
   var quote = Buffer.from ? Buffer.from('"') : new Buffer('"');
   t.plan(1);
