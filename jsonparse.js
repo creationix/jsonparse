@@ -89,7 +89,7 @@ proto.charError = function (buffer, i) {
   this.onError(new Error("Unexpected " + JSON.stringify(String.fromCharCode(buffer[i])) + " at position " + i + " in state " + Parser.toknam(this.tState)));
 };
 proto.appendStringChar = function (char) {
-  if (this.stringBufferOffset === STRING_BUFFER_SIZE) {
+  if (this.stringBufferOffset >= STRING_BUFFER_SIZE) {
     this.string += this.stringBuffer.toString('utf8');
     this.stringBufferOffset = 0;
   }
@@ -98,13 +98,21 @@ proto.appendStringChar = function (char) {
 };
 proto.appendStringBuf = function (buf, start, end) {
   var size = buf.length;
-  if (end < 0) {
-    size += end ;// add a negative to subtract
-  } else if (end) {
-    size = end;
+  if (typeof start === 'number') {
+    if (typeof end === 'number') {
+      if (end < 0) {
+        // adding a negative end decreeses the size
+        size = buf.length - start + end;
+      } else {
+        size = end - start;
+      }
+    } else {
+      size = buf.length - start;
+    }
   }
-  if (start) {
-    size -= start;
+
+  if (size < 0) {
+    size = 0;
   }
 
   if (this.stringBufferOffset + size > STRING_BUFFER_SIZE) {
@@ -154,7 +162,7 @@ proto.write = function (buffer) {
           this.temp_buffs[this.bytes_in_sequence][this.bytes_in_sequence - this.bytes_remaining + j] = buffer[j];
         }
 
-        this.appendStringBuf(this.temp_buffs[this.bytes_in_sequence])
+        this.appendStringBuf(this.temp_buffs[this.bytes_in_sequence]);
         this.bytes_in_sequence = this.bytes_remaining = 0;
         i = i + j - 1;
       } else if (this.bytes_remaining === 0 && n >= 128) { // else if no remainder bytes carried over, parse multi byte (>=128) chars one at a time
@@ -171,7 +179,7 @@ proto.write = function (buffer) {
           this.bytes_remaining = (i + this.bytes_in_sequence) - buffer.length;
           i = buffer.length - 1;
         } else {
-          this.appendStringBuf(buffer, i, i + this.bytes_in_sequence)
+          this.appendStringBuf(buffer, i, i + this.bytes_in_sequence);
           i = i + this.bytes_in_sequence - 1;
         }
       } else if (n === 0x22) {
@@ -185,7 +193,7 @@ proto.write = function (buffer) {
       else if (n === 0x5c) {
         this.tState = STRING2;
       }
-      else if (n >= 0x20) { this.appendStringChar(n) }
+      else if (n >= 0x20) { this.appendStringChar(n); }
       else {
           return this.charError(buffer, i);
       }
