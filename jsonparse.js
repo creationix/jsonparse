@@ -41,12 +41,15 @@ var KEY     = C.KEY     = 0x72;
 var OBJECT  = C.OBJECT  = 0x81;
 var ARRAY   = C.ARRAY   = 0x82;
 
+var STRING_BUFFER_SIZE = 64 * 1024;
 
 function Parser() {
   this.tState = START;
   this.value = undefined;
 
   this.string = undefined; // string data
+  this.stringBuffer = Buffer.alloc(STRING_BUFFER_SIZE);
+  this.stringBufferOffset = 0;
   this.unicode = undefined; // unicode escapes
 
   this.key = undefined;
@@ -77,6 +80,33 @@ proto.charError = function (buffer, i) {
   this.tState = STOP;
   this.onError(new Error("Unexpected " + JSON.stringify(String.fromCharCode(buffer[i])) + " at position " + i + " in state " + Parser.toknam(this.tState)));
 };
+proto.appendStringChar = function (char) {
+  if (this.stringBufferOffset === STRING_BUFFER_SIZE) {
+    this.string += this.stringBuffer.toString('utf8');
+    this.stringBufferOffset = 0;
+  }
+
+  this.stringBuffer[this.stringBufferOffset++] = char;
+};
+proto.appendStringBuf = function (buf, start, end) {
+  var size = buf.length;
+  if (end < 0) {
+    size += end ;// add a negative to subtract
+  } else if (end) {
+    size = end;
+  }
+  if (start) {
+    size -= start;
+  }
+
+  if (this.stringBufferOffset + size > STRING_BUFFER_SIZE) {
+    this.string += this.stringBuffer.toString('utf8', 0, this.stringBufferOffset);
+    this.stringBufferOffset = 0;
+  }
+
+  buf.copy(this.stringBuffer, this.stringBufferOffset, start, end);
+  this.stringBufferOffset += size;
+};
 proto.write = function (buffer) {
   if (typeof buffer === "string") buffer = new Buffer(buffer);
   var n;
@@ -93,7 +123,10 @@ proto.write = function (buffer) {
       }else if(n === 0x74){ this.tState = TRUE1;  // t
       }else if(n === 0x66){ this.tState = FALSE1;  // f
       }else if(n === 0x6e){ this.tState = NULL1; // n
-      }else if(n === 0x22){ this.string = ""; this.tState = STRING1; // "
+      }else if(n === 0x22){ // "
+        this.string = "";
+        this.stringBufferOffset = 0;
+        this.tState = STRING1;
       }else if(n === 0x2d){ this.string = "-"; this.tState = NUMBER1; // -
       }else{
         if (n >= 0x30 && n < 0x40) { // 1-9
@@ -112,7 +145,8 @@ proto.write = function (buffer) {
         for (var j = 0; j < this.bytes_remaining; j++) {
           this.temp_buffs[this.bytes_in_sequence][this.bytes_in_sequence - this.bytes_remaining + j] = buffer[j];
         }
-        this.string += this.temp_buffs[this.bytes_in_sequence].toString();
+
+        this.appendStringBuf(this.temp_buffs[this.bytes_in_sequence])
         this.bytes_in_sequence = this.bytes_remaining = 0;
         i = i + j - 1;
       } else if (this.bytes_remaining === 0 && n >= 128) { // else if no remainder bytes carried over, parse multi byte (>=128) chars one at a time
@@ -129,28 +163,37 @@ proto.write = function (buffer) {
           this.bytes_remaining = (i + this.bytes_in_sequence) - buffer.length;
           i = buffer.length - 1;
         } else {
-          this.string += buffer.slice(i, (i + this.bytes_in_sequence)).toString();
+          this.appendStringBuf(buffer, i, i + this.bytes_in_sequence)
           i = i + this.bytes_in_sequence - 1;
         }
-      } else if (n === 0x22) { this.tState = START; this.onToken(STRING, this.string); this.offset += Buffer.byteLength(this.string, 'utf8') + 1; this.string = undefined; }
-      else if (n === 0x5c) { this.tState = STRING2; }
-      else if (n >= 0x20) { this.string += String.fromCharCode(n); }
+      } else if (n === 0x22) {
+        this.tState = START;
+        this.string += this.stringBuffer.toString('utf8', 0, this.stringBufferOffset);
+        this.stringBufferOffset = 0;
+        this.onToken(STRING, this.string);
+        this.offset += Buffer.byteLength(this.string, 'utf8') + 1;
+        this.string = undefined;
+      }
+      else if (n === 0x5c) {
+        this.tState = STRING2;
+      }
+      else if (n >= 0x20) { this.appendStringChar(n) }
       else {
           return this.charError(buffer, i);
       }
     }else if (this.tState === STRING2){ // After backslash
       n = buffer[i];
-      if(n === 0x22){ this.string += "\""; this.tState = STRING1;
-      }else if(n === 0x5c){ this.string += "\\"; this.tState = STRING1; 
-      }else if(n === 0x2f){ this.string += "\/"; this.tState = STRING1; 
-      }else if(n === 0x62){ this.string += "\b"; this.tState = STRING1; 
-      }else if(n === 0x66){ this.string += "\f"; this.tState = STRING1; 
-      }else if(n === 0x6e){ this.string += "\n"; this.tState = STRING1; 
-      }else if(n === 0x72){ this.string += "\r"; this.tState = STRING1; 
-      }else if(n === 0x74){ this.string += "\t"; this.tState = STRING1; 
+      if(n === 0x22){ this.appendStringChar(n); this.tState = STRING1;
+      }else if(n === 0x5c){ this.appendStringChar("\\".charCodeAt(0)); this.tState = STRING1;
+      }else if(n === 0x2f){ this.appendStringChar("\/".charCodeAt(0)); this.tState = STRING1;
+      }else if(n === 0x62){ this.appendStringChar("\b".charCodeAt(0)); this.tState = STRING1;
+      }else if(n === 0x66){ this.appendStringChar("\f".charCodeAt(0)); this.tState = STRING1;
+      }else if(n === 0x6e){ this.appendStringChar("\n".charCodeAt(0)); this.tState = STRING1;
+      }else if(n === 0x72){ this.appendStringChar("\r".charCodeAt(0)); this.tState = STRING1;
+      }else if(n === 0x74){ this.appendStringChar("\t".charCodeAt(0)); this.tState = STRING1;
       }else if(n === 0x75){ this.unicode = ""; this.tState = STRING3;
-      }else{ 
-        return this.charError(buffer, i); 
+      }else{
+        return this.charError(buffer, i);
       }
     }else if (this.tState === STRING3 || this.tState === STRING4 || this.tState === STRING5 || this.tState === STRING6){ // unicode hex codes
       n = buffer[i];
@@ -158,9 +201,9 @@ proto.write = function (buffer) {
       if ((n >= 0x30 && n < 0x40) || (n > 0x40 && n <= 0x46) || (n > 0x60 && n <= 0x66)) {
         this.unicode += String.fromCharCode(n);
         if (this.tState++ === STRING6) {
-          this.string += String.fromCharCode(parseInt(this.unicode, 16));
+          this.appendStringBuf(Buffer(String.fromCharCode(parseInt(this.unicode, 16))));
           this.unicode = undefined;
-          this.tState = STRING1; 
+          this.tState = STRING1;
         }
       } else {
         return this.charError(buffer, i);
@@ -266,14 +309,14 @@ proto.emit = function (value) {
 };
 proto.onValue = function (value) {
   // Override me
-};  
+};
 proto.onToken = function (token, value) {
   if(this.state === VALUE){
     if(token === STRING || token === NUMBER || token === TRUE || token === FALSE || token === NULL){
       if (this.value) {
         this.value[this.key] = value;
       }
-      this.emit(value);  
+      this.emit(value);
     }else if(token === LEFT_BRACE){
       this.push();
       if (this.value) {
@@ -322,7 +365,7 @@ proto.onToken = function (token, value) {
     if (token === COLON) { this.state = VALUE; }
     else { return this.parseError(token, value); }
   }else if(this.state === COMMA){
-    if (token === COMMA) { 
+    if (token === COMMA) {
       if (this.mode === ARRAY) { this.key++; this.state = VALUE; }
       else if (this.mode === OBJECT) { this.state = KEY; }
 
