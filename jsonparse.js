@@ -48,7 +48,7 @@ function Parser() {
   this.value = undefined;
 
   this.string = undefined; // string data
-  this.stringBuffer = Buffer.alloc(STRING_BUFFER_SIZE);
+  this.stringBuffer = Buffer.alloc ? Buffer.alloc(STRING_BUFFER_SIZE) : new Buffer(STRING_BUFFER_SIZE);
   this.stringBufferOffset = 0;
   this.unicode = undefined; // unicode escapes
 
