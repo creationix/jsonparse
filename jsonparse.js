@@ -67,7 +67,7 @@ function Parser() {
   this.state = VALUE;
   this.bytes_remaining = 0; // number of bytes remaining in multi byte utf8 char to read after split boundary
   this.bytes_in_sequence = 0; // bytes in multi byte utf8 char to read
-  this.temp_buffs = { "2": new Buffer(2), "3": new Buffer(3), "4": new Buffer(4) }; // for rebuilding chars split before boundary is reached
+  this.temp_buffs = { "2": Buffer.alloc(2), "3": Buffer.alloc(3), "4": Buffer.alloc(4) }; // for rebuilding chars split before boundary is reached
 
   // Stream offset
   this.offset = -1;
