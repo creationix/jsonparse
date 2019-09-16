@@ -267,7 +267,7 @@ proto.write = function (buffer) {
               return this.charError(buffer, i);
             }
 
-            if ((this.string.match(/[0-9]+/) == this.string) && (result.toString() != this.string)) {
+            if ((this.string.match(/-?[0-9]+/) == this.string) && (result.toString() != this.string)) {
               // Long string of digits which is an ID string and not valid and/or safe JavaScript integer Number
               this.onToken(STRING, this.string);
             } else {
