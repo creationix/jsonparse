@@ -261,17 +261,9 @@ proto.write = function (buffer) {
             break;
           default:
             this.tState = START;
-            var result = Number(this.string);
-
-            if (isNaN(result)){
-              return this.charError(buffer, i);
-            }
-
-            if ((this.string.match(/[0-9]+/) == this.string) && (result.toString() != this.string)) {
-              // Long string of digits which is an ID string and not valid and/or safe JavaScript integer Number
-              this.onToken(STRING, this.string);
-            } else {
-              this.onToken(NUMBER, result);
+            var error = this.numberReviver(this.string);
+            if (error){
+              return error;
             }
 
             this.offset += this.string.length - 1;
@@ -407,6 +399,23 @@ proto.onToken = function (token, value) {
     return this.parseError(token, value);
   }
 };
+
+// Override to implement your own number reviver.
+// Any value returned is treated as error and will interrupt parsing.
+proto.numberReviver = function (text) {
+  var result = Number(text);
+
+  if (isNaN(result)) {
+    return this.charError(buffer, i);
+  }
+
+  if ((text.match(/[0-9]+/) == text) && (result.toString() != text)) {
+    // Long string of digits which is an ID string and not valid and/or safe JavaScript integer Number
+    this.onToken(STRING, text);
+  } else {
+    this.onToken(NUMBER, result);
+  }
+}
 
 Parser.C = C;
 
