@@ -51,12 +51,16 @@ var TAB =             "\t".charCodeAt(0);
 
 var STRING_BUFFER_SIZE = 64 * 1024;
 
+function alloc(size) {
+  return Buffer.alloc ? Buffer.alloc(size) : new Buffer(size);
+}
+
 function Parser() {
   this.tState = START;
   this.value = undefined;
 
   this.string = undefined; // string data
-  this.stringBuffer = Buffer.alloc ? Buffer.alloc(STRING_BUFFER_SIZE) : new Buffer(STRING_BUFFER_SIZE);
+  this.stringBuffer = alloc(STRING_BUFFER_SIZE);
   this.stringBufferOffset = 0;
   this.unicode = undefined; // unicode escapes
   this.highSurrogate = undefined;
@@ -67,7 +71,7 @@ function Parser() {
   this.state = VALUE;
   this.bytes_remaining = 0; // number of bytes remaining in multi byte utf8 char to read after split boundary
   this.bytes_in_sequence = 0; // bytes in multi byte utf8 char to read
-  this.temp_buffs = { "2": new Buffer(2), "3": new Buffer(3), "4": new Buffer(4) }; // for rebuilding chars split before boundary is reached
+  this.temp_buffs = { "2": alloc(2), "3": alloc(3), "4": alloc(4) }; // for rebuilding chars split before boundary is reached
 
   // Stream offset
   this.offset = -1;
