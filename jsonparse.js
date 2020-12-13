@@ -54,6 +54,9 @@ var STRING_BUFFER_SIZE = 64 * 1024;
 function alloc(size) {
   return Buffer.alloc ? Buffer.alloc(size) : new Buffer(size);
 }
+function bufferFrom(arg) {
+  return Buffer.from ? Buffer.from(arg) : new Buffer(arg);
+}
 
 function Parser() {
   this.tState = START;
@@ -129,7 +132,7 @@ proto.appendStringBuf = function (buf, start, end) {
   this.stringBufferOffset += size;
 };
 proto.write = function (buffer) {
-  if (typeof buffer === "string") buffer = new Buffer(buffer);
+  if (typeof buffer === "string") buffer = bufferFrom(buffer);
   var n;
   for (var i = 0, l = buffer.length; i < l; i++) {
     if (this.tState === START){
@@ -225,16 +228,16 @@ proto.write = function (buffer) {
           var intVal = parseInt(this.unicode, 16);
           this.unicode = undefined;
           if (this.highSurrogate !== undefined && intVal >= 0xDC00 && intVal < (0xDFFF + 1)) { //<56320,57343> - lowSurrogate
-            this.appendStringBuf(new Buffer(String.fromCharCode(this.highSurrogate, intVal)));
+            this.appendStringBuf(bufferFrom(String.fromCharCode(this.highSurrogate, intVal)));
             this.highSurrogate = undefined;
           } else if (this.highSurrogate === undefined && intVal >= 0xD800 && intVal < (0xDBFF + 1)) { //<55296,56319> - highSurrogate
             this.highSurrogate = intVal;
           } else {
             if (this.highSurrogate !== undefined) {
-              this.appendStringBuf(new Buffer(String.fromCharCode(this.highSurrogate)));
+              this.appendStringBuf(bufferFrom(String.fromCharCode(this.highSurrogate)));
               this.highSurrogate = undefined;
             }
-            this.appendStringBuf(new Buffer(String.fromCharCode(intVal)));
+            this.appendStringBuf(bufferFrom(String.fromCharCode(intVal)));
           }
           this.tState = STRING1;
         }
