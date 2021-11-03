@@ -1,6 +1,8 @@
 var test = require('tape');
 var Parser = require('../');
 
+const bufferFrom = Buffer.from ? Buffer.from : (...args) => new Buffer(...args);
+
 test('2 byte utf8 \'De\' character: д', function (t) {
   t.plan(1);
 
@@ -9,7 +11,7 @@ test('2 byte utf8 \'De\' character: д', function (t) {
     t.equal(value, 'д');
   };
 
-  var de_buffer = new Buffer([0xd0, 0xb4]);
+  var de_buffer = bufferFrom([0xd0, 0xb4]);
 
   p.write('"');
   p.write(de_buffer);
@@ -25,7 +27,7 @@ test('3 byte utf8 \'Han\' character: 我', function (t) {
     t.equal(value, '我');
   };
 
-  var han_buffer = new Buffer([0xe6, 0x88, 0x91]);
+  var han_buffer = bufferFrom([0xe6, 0x88, 0x91]);
   p.write('"');
   p.write(han_buffer);
   p.write('"');
@@ -39,7 +41,7 @@ test('4 byte utf8 character (unicode scalar U+2070E): 𠜎', function (t) {
     t.equal(value, '𠜎');
   };
 
-  var Ux2070E_buffer = new Buffer([0xf0, 0xa0, 0x9c, 0x8e]);
+  var Ux2070E_buffer = bufferFrom([0xf0, 0xa0, 0x9c, 0x8e]);
   p.write('"');
   p.write(Ux2070E_buffer);
   p.write('"');
@@ -53,8 +55,8 @@ test('3 byte utf8 \'Han\' character chunked inbetween 2nd and 3rd byte: 我', fu
     t.equal(value, '我');
   };
 
-  var han_buffer_first = new Buffer([0xe6, 0x88]);
-  var han_buffer_second = new Buffer([0x91]);
+  var han_buffer_first = bufferFrom([0xe6, 0x88]);
+  var han_buffer_second = bufferFrom([0x91]);
   p.write('"');
   p.write(han_buffer_first);
   p.write(han_buffer_second);
@@ -69,8 +71,8 @@ test('4 byte utf8 character (unicode scalar U+2070E) chunked inbetween 2nd and 3
     t.equal(value, '𠜎');
   };
 
-  var Ux2070E_buffer_first = new Buffer([0xf0, 0xa0]);
-  var Ux2070E_buffer_second = new Buffer([0x9c, 0x8e]);
+  var Ux2070E_buffer_first = bufferFrom([0xf0, 0xa0]);
+  var Ux2070E_buffer_second = bufferFrom([0x9c, 0x8e]);
   p.write('"');
   p.write(Ux2070E_buffer_first);
   p.write(Ux2070E_buffer_second);
@@ -85,7 +87,7 @@ var p = new Parser();
     t.equal(value, 'Aж文𠜱B');
   };
 
-  var eclectic_buffer = new Buffer([0x41, // A
+  var eclectic_buffer = bufferFrom([0x41, // A
                                     0xd0, 0xb6, // ж
                                     0xe6, 0x96, 0x87, // 文
                                     0xf0, 0xa0, 0x9c, 0xb1, // 𠜱
