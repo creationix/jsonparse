@@ -410,7 +410,7 @@ proto.numberReviver = function (text) {
   var result = Number(text);
 
   if (isNaN(result)) {
-    return this.charError(buffer, i);
+    return this.parseError(NUMBER, text);
   }
 
   if ((text.match(/[0-9]+/) == text) && (result.toString() != text)) {
