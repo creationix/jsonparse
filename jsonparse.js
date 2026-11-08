@@ -163,12 +163,16 @@ proto.write = function (buffer) {
       // check for carry over of a multi byte char split between data chunks
       // & fill temp buffer it with start of this data chunk up to the boundary limit set in the last iteration
       if (this.bytes_remaining > 0) {
-        for (var j = 0; j < this.bytes_remaining; j++) {
-          this.temp_buffs[this.bytes_in_sequence][this.bytes_in_sequence - this.bytes_remaining + j] = buffer[j];
+        var toConsume = Math.min(this.bytes_remaining, l - i);
+        for (var j = 0; j < toConsume; j++) {
+          this.temp_buffs[this.bytes_in_sequence][this.bytes_in_sequence - this.bytes_remaining + j] = buffer[i + j];
         }
+        this.bytes_remaining -= toConsume;
 
-        this.appendStringBuf(this.temp_buffs[this.bytes_in_sequence]);
-        this.bytes_in_sequence = this.bytes_remaining = 0;
+        if (this.bytes_remaining === 0) {
+          this.appendStringBuf(this.temp_buffs[this.bytes_in_sequence]);
+          this.bytes_in_sequence = 0;
+        }
         i = i + j - 1;
       } else if (this.bytes_remaining === 0 && n >= 128) { // else if no remainder bytes carried over, parse multi byte (>=128) chars one at a time
         if (n <= 193 || n > 244) {
