@@ -308,6 +308,18 @@ proto.write = function (buffer) {
     }
   }
 };
+// Call when there is no more input. A number is only complete when a byte
+// that cannot be part of it arrives, so a number at the end of the input is
+// emitted here. Reports an error if the input ends inside a value.
+proto.end = function () {
+  if (this.tState === NUMBER1 || this.tState === NUMBER3) {
+    this.write(" ");
+  }
+  if (this.tState !== STOP && (this.tState !== START || this.stack.length > 0)) {
+    this.tState = STOP;
+    this.onError(new Error("Unexpected end of input"));
+  }
+};
 proto.onToken = function (token, value) {
   // Override this to get events
 };
